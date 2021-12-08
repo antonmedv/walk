@@ -5,7 +5,7 @@ import (
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"golang.org/x/crypto/ssh/terminal"
+	"github.com/sahilm/fuzzy"
 	"io/fs"
 	"io/ioutil"
 	"math"
@@ -13,36 +13,38 @@ import (
 	"os/exec"
 	"path/filepath"
 	. "strings"
+	"time"
 )
 
 var (
-	modified  = lipgloss.NewStyle().Foreground(lipgloss.Color("#4688F2"))
+	modified  = lipgloss.NewStyle().Foreground(lipgloss.Color("#5050F2"))
 	added     = lipgloss.NewStyle().Foreground(lipgloss.Color("#47DE47"))
 	untracked = lipgloss.NewStyle().Foreground(lipgloss.Color("#E84343"))
-	selector  = lipgloss.NewStyle().
-			Background(lipgloss.Color("#825DF2")).
-			Foreground(lipgloss.Color("#FFFFFF"))
+	cursor    = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
 )
 
 func main() {
 	path, err := os.Getwd()
 	if err != nil {
-		panic(err)
+		die(err)
 	}
 	if len(os.Args) == 2 {
-		path = os.Args[1]
+		// Maybe it is and argument, so get absolute path.
+		path, err = filepath.Abs(os.Args[1])
+		if err != nil {
+			die(err)
+		}
 	}
 
 	// If stdout of ll piped, use ls behavior: one line, no colors.
 	fi, err := os.Stdout.Stat()
 	if err != nil {
-		panic(err)
+		die(err)
 	}
 	if (fi.Mode() & os.ModeCharDevice) == 0 {
 		files, err := ioutil.ReadDir(path)
 		if err != nil {
-			_, _ = fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+			die(err)
 		}
 		for _, file := range files {
 			fmt.Println(file.Name())
@@ -50,24 +52,39 @@ func main() {
 		return
 	}
 
-	m := &model{path: path}
+	m := &model{
+		path:      path,
+		width:     80,
+		height:    60,
+		positions: make(map[string]position),
+	}
 	m.list()
 	m.status()
 
 	p := tea.NewProgram(m)
-
 	if err := p.Start(); err != nil {
-		fmt.Println("Error running program:", err)
+		die(err)
 	}
 }
 
 type model struct {
-	path          string
-	c, r          int
-	columns, rows int
-	width, height int
-	styles        map[string]lipgloss.Style
-	files         []fs.FileInfo
+	path           string                    // Current dir path we are looking at.
+	files          []fs.FileInfo             // Files we are looking at.
+	c, r           int                       // Selector position in columns and rows.
+	columns, rows  int                       // Displayed amount of rows and columns.
+	width, height  int                       // Terminal size.
+	offset         int                       // Scroll position.
+	styles         map[string]lipgloss.Style // Colors of different files based on git status.
+	editMode       bool                      // User opened file for editing.
+	positions      map[string]position       // Map of cursor positions per path.
+	search         string                    // Search file by this name.
+	updatedAt      time.Time                 // Time of last key press.
+	matchedIndexes []int                     // List of char found indexes.
+}
+
+type position struct {
+	c, r   int
+	offset int
 }
 
 func (m *model) Init() tea.Cmd {
@@ -75,38 +92,86 @@ func (m *model) Init() tea.Cmd {
 }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.editMode {
+		return m, nil
+	}
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.positions = make(map[string]position) // Reset position history.
 		return m, nil
 
 	case tea.KeyMsg:
+		if msg.Type == tea.KeyRunes {
+			// Input a regular character, do the search.
+			if time.Now().Sub(m.updatedAt).Seconds() >= 1 {
+				m.search = string(msg.Runes)
+			} else {
+				m.search += string(msg.Runes)
+			}
+			m.updatedAt = time.Now()
+			names := make([]string, len(m.files))
+			for i, fi := range m.files {
+				names[i] = fi.Name()
+			}
+			matches := fuzzy.Find(m.search, names)
+			if len(matches) > 0 {
+				m.matchedIndexes = matches[0].MatchedIndexes
+				index := matches[0].Index
+				m.c = index / m.rows
+				m.r = index % m.rows
+			}
+		}
+
 		switch keypress := msg.String(); keypress {
-		case "ctrl+c", "esc", "q":
+		case "ctrl+c", "esc":
 			fmt.Println()
-			fmt.Fprintln(os.Stderr, m.path)
+			_, _ = fmt.Fprintln(os.Stderr, m.path)
 			return m, tea.Quit
 
-		case "e":
-			cmd := exec.Command("less", filepath.Join(m.path, m.files[m.c*m.rows+m.r].Name()))
-			cmd.Stdin = os.Stdin
-			cmd.Stdout = os.Stdout
-			cmd.Run()
-
 		case "enter":
-			m.path = filepath.Join(m.path, m.files[m.c*m.rows+m.r].Name())
-			m.c = 0
-			m.r = 0
-			m.list()
-			m.status()
-			return m, nil
+			newPath := filepath.Join(m.path, m.files[m.c*m.rows+m.r].Name())
+			if fi := fileInfo(newPath); fi.IsDir() {
+				// Enter subdirectory.
+				m.path = newPath
+				if p, ok := m.positions[m.path]; ok {
+					m.c = p.c
+					m.r = p.r
+					m.offset = p.offset
+				} else {
+					m.c = 0
+					m.r = 0
+					m.offset = 0
+				}
+				m.list()
+				m.status()
+			} else {
+				// Open file.
+				cmd := exec.Command(lookup([]string{"LLAMA_EDITOR", "EDITOR"}, "less"), filepath.Join(m.path, m.files[m.c*m.rows+m.r].Name()))
+				cmd.Stdin = os.Stdin
+				cmd.Stderr = os.Stderr
+				cmd.Stdout = os.Stdout
+				m.editMode = true
+				_ = cmd.Run()
+				m.editMode = false
+				return m, tea.HideCursor
+			}
 
 		case "backspace":
 			m.path = filepath.Join(m.path, "..")
+			if p, ok := m.positions[m.path]; ok {
+				m.c = p.c
+				m.r = p.r
+				m.offset = p.offset
+			} else {
+				m.c = 0
+				m.r = 0
+				m.offset = 0
+			}
 			m.list()
 			m.status()
-			return m, nil
 
 		case "up":
 			m.r--
@@ -155,6 +220,20 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	if m.r >= m.offset+m.height {
+		m.offset = m.r - m.height + 1
+	}
+	if m.r < m.offset {
+		m.offset = m.r
+	}
+
+	// Save position to restore later.
+	m.positions[m.path] = position{
+		c:      m.c,
+		r:      m.r,
+		offset: m.offset,
+	}
+
 	return m, nil
 }
 
@@ -163,16 +242,9 @@ func (m *model) View() string {
 		return "No files"
 	}
 
-	// We need terminal size to nicely fit on screen.
-	fd := int(os.Stdin.Fd())
-	width, height, err := terminal.GetSize(fd)
-	if err != nil {
-		width, height = 80, 60
-	}
-
 	// If it's possible to fit all files in one column on half of screen, just use one column.
 	// Otherwise, let's squeeze listing in half of screen.
-	m.columns = len(m.files)/(height/2) + 1
+	m.columns = len(m.files)/(m.height/2) + 1
 
 start:
 	// Let's try to fit everything in terminal width with this many columns.
@@ -211,7 +283,7 @@ start:
 		for i := 0; i < m.columns; i++ {
 			row[i] = names[i][j]
 		}
-		if len(Join(row, separator)) > width && m.columns > 1 {
+		if len(Join(row, separator)) > m.width && m.columns > 1 {
 			// Yep. No luck, let's decrease number of columns and try one more time.
 			m.columns--
 			goto start
@@ -224,7 +296,7 @@ start:
 		row := make([]string, m.columns)
 		for i := 0; i < m.columns; i++ {
 			if i == m.c && j == m.r {
-				row[i] = selector.Render(names[i][j])
+				row[i] = cursor.Render(names[i][j])
 				continue
 			}
 			s, ok := m.styles[TrimRight(names[i][j], " ")]
@@ -238,30 +310,22 @@ start:
 		output[j] = Join(row, separator)
 	}
 
+	if len(output) >= m.offset+m.height {
+		output = output[m.offset : m.offset+m.height]
+	}
+
 	return Join(output, "\n")
 }
 
 func (m *model) list() {
+	var err error
 	m.files = nil
 	m.styles = nil
 
-	// Maybe it is and argument, so get absolute path.
-	cwd, err := filepath.Abs(m.path)
-	if err != nil {
-		_, _ = fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-
-	// Is it a file?
-	if fi := fileInfo(cwd); !fi.IsDir() {
-		return
-	}
-
 	// ReadDir already returns files and dirs sorted by filename.
-	m.files, err = ioutil.ReadDir(cwd)
+	m.files, err = ioutil.ReadDir(m.path)
 	if err != nil {
-		_, _ = fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		die(err)
 	}
 }
 
@@ -269,7 +333,7 @@ func (m *model) status() {
 	// Going to keep file names and format string for git status.
 	m.styles = map[string]lipgloss.Style{}
 
-	status := gitStatus()
+	status := m.gitStatus()
 	for _, file := range m.files {
 		name := file.Name()
 		if file.IsDir() {
@@ -291,6 +355,46 @@ func (m *model) status() {
 	}
 }
 
+func (m *model) gitRepo() (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Dir = m.path
+	err := cmd.Run()
+	return Trim(out.String(), "\n"), err
+}
+
+func (m *model) gitStatus() map[string]string {
+	repo, err := m.gitRepo()
+	if err != nil {
+		return nil
+	}
+	cmd := exec.Command("git", "status", "--porcelain=v1")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Dir = m.path
+	err = cmd.Run()
+	if err != nil {
+		return nil
+	}
+	paths := map[string]string{}
+	for _, line := range Split(Trim(out.String(), "\n"), "\n") {
+		if len(line) == 0 {
+			continue
+		}
+		paths[filepath.Join(repo, line[3:])] = line[:2]
+	}
+	return paths
+}
+
+func fileInfo(path string) os.FileInfo {
+	fi, err := os.Stat(path)
+	if err != nil {
+		die(err)
+	}
+	return fi
+}
+
 func subPath(path string, fullPath string) bool {
 	p := Split(path, "/")
 	for i, s := range Split(fullPath, "/") {
@@ -304,41 +408,17 @@ func subPath(path string, fullPath string) bool {
 	return true
 }
 
-func gitRepo() (string, error) {
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
-	return Trim(out.String(), "\n"), err
-}
-
-func gitStatus() map[string]string {
-	repo, err := gitRepo()
-	if err != nil {
-		return nil
-	}
-	cmd := exec.Command("git", "status", "--porcelain=v1")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err = cmd.Run()
-	if err != nil {
-		return nil
-	}
-	m := map[string]string{}
-	for _, line := range Split(Trim(out.String(), "\n"), "\n") {
-		if len(line) == 0 {
-			continue
+func lookup(names []string, val string) string {
+	for _, name := range names {
+		val, ok := os.LookupEnv(name)
+		if ok && val != "" {
+			return val
 		}
-		m[filepath.Join(repo, line[3:])] = line[:2]
 	}
-	return m
+	return val
 }
 
-func fileInfo(path string) os.FileInfo {
-	fi, err := os.Stat(path)
-	if err != nil {
-		_, _ = fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	return fi
+func die(msg interface{}) {
+	fmt.Println(msg)
+	os.Exit(1)
 }
