@@ -244,7 +244,10 @@ func (m *model) View() string {
 
 	// If it's possible to fit all files in one column on half of screen, just use one column.
 	// Otherwise, let's squeeze listing in half of screen.
-	m.columns = len(m.files)/(m.height/2) + 1
+	m.columns = len(m.files) / (m.height / 2)
+	if m.columns <= 0 {
+		m.columns = 1
+	}
 
 start:
 	// Let's try to fit everything in terminal width with this many columns.
