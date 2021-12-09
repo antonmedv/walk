@@ -257,9 +257,9 @@ func (m *model) View() string {
 		return "No files"
 	}
 
-	// If it's possible to fit all files in one column on half of screen, just use one column.
-	// Otherwise, let's squeeze listing in half of screen.
-	m.columns = len(m.files) / (m.height / 2)
+	// If it's possible to fit all files in one column on a third of the screen,
+	// just use one column. Otherwise, let's squeeze listing in half of screen.
+	m.columns = len(m.files) / (m.height / 3)
 	if m.columns <= 0 {
 		m.columns = 1
 	}
