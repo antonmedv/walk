@@ -1,6 +1,6 @@
-# Llama
+# llama
 
-<img src="https://medv.io/assets/llama/llama.gif" width="650" alt="Llama Screenshot">
+<p align="center"><img src="https://medv.io/assets/llama/llama.gif" width="520" align="center" alt="Llama Screenshot"></p>
 
 Llama — a terminal file manager.
 
