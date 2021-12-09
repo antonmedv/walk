@@ -80,6 +80,8 @@ type model struct {
 	search         string                    // Search file by this name.
 	updatedAt      time.Time                 // Time of last key press.
 	matchedIndexes []int                     // List of char found indexes.
+	prevName       string                    // Base name of previous directory before "up".
+	findPrevName   bool                      // On View(), set c&r to point to prevName.
 }
 
 type position struct {
@@ -100,7 +102,14 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.positions = make(map[string]position) // Reset position history.
+		// Reset position history as c&r changes.
+		m.positions = make(map[string]position)
+		// Keep cursor at same place.
+		m.prevName = m.fileAtCursor().Name()
+		m.findPrevName = true
+		// Also, m.c&r no longer point to correct indexes.
+		m.c = 0
+		m.r = 0
 		return m, nil
 
 	case tea.KeyMsg:
@@ -132,7 +141,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case "enter":
-			newPath := filepath.Join(m.path, m.files[m.c*m.rows+m.r].Name())
+			newPath := filepath.Join(m.path, m.fileAtCursor().Name())
 			if fi := fileInfo(newPath); fi.IsDir() {
 				// Enter subdirectory.
 				m.path = newPath
@@ -149,10 +158,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.status()
 			} else {
 				// Open file.
-				cmd := exec.Command(lookup([]string{"LLAMA_EDITOR", "EDITOR"}, "less"), filepath.Join(m.path, m.files[m.c*m.rows+m.r].Name()))
+				cmd := exec.Command(lookup([]string{"LLAMA_EDITOR", "EDITOR"}, "less"), filepath.Join(m.path, m.fileAtCursor().Name()))
 				cmd.Stdin = os.Stdin
-				cmd.Stderr = os.Stderr
 				cmd.Stdout = os.Stdout
+				// Note: no Stderr as redirect `llama 2> /tmp/path` can be used.
 				m.editMode = true
 				_ = cmd.Run()
 				m.editMode = false
@@ -160,15 +169,16 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "backspace":
+			m.prevName = filepath.Base(m.path)
 			m.path = filepath.Join(m.path, "..")
 			if p, ok := m.positions[m.path]; ok {
 				m.c = p.c
 				m.r = p.r
 				m.offset = p.offset
 			} else {
-				m.c = 0
-				m.r = 0
-				m.offset = 0
+				m.findPrevName = true
+				m.list()
+				m.status()
 			}
 			m.list()
 			m.status()
@@ -219,21 +229,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	}
-
-	if m.r >= m.offset+m.height {
-		m.offset = m.r - m.height + 1
-	}
-	if m.r < m.offset {
-		m.offset = m.r
-	}
-
-	// Save position to restore later.
-	m.positions[m.path] = position{
-		c:      m.c,
-		r:      m.r,
-		offset: m.offset,
-	}
-
+	m.updateOffset()
+	m.saveCursorPosition()
 	return m, nil
 }
 
@@ -263,6 +260,10 @@ start:
 			name := ""
 			if n < len(m.files) {
 				name = m.files[n].Name()
+				if m.findPrevName && m.prevName == name {
+					m.c = i
+					m.r = j
+				}
 				if m.files[n].IsDir() {
 					// Dirs should have a slash at the end.
 					name += "/"
@@ -291,6 +292,13 @@ start:
 			m.columns--
 			goto start
 		}
+	}
+
+	// If we need to select previous directory on "up".
+	if m.findPrevName {
+		m.findPrevName = false
+		m.updateOffset()
+		m.saveCursorPosition()
 	}
 
 	// Let's add colors from git status to file names.
@@ -388,6 +396,34 @@ func (m *model) gitStatus() map[string]string {
 		paths[filepath.Join(repo, line[3:])] = line[:2]
 	}
 	return paths
+}
+
+func (m *model) updateOffset() {
+	// Scrolling down.
+	if m.r >= m.offset+m.height {
+		m.offset = m.r - m.height + 1
+	}
+	// Scrolling up.
+	if m.r < m.offset {
+		m.offset = m.r
+	}
+	// Don't scroll more than there are rows.
+	if m.offset > m.rows-m.height && m.rows > m.height {
+		m.offset = m.rows - m.height
+	}
+}
+
+// Save position to restore later.
+func (m *model) saveCursorPosition() {
+	m.positions[m.path] = position{
+		c:      m.c,
+		r:      m.r,
+		offset: m.offset,
+	}
+}
+
+func (m *model) fileAtCursor() os.FileInfo {
+	return m.files[m.c*m.rows+m.r]
 }
 
 func fileInfo(path string) os.FileInfo {
