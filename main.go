@@ -32,7 +32,15 @@ func main() {
 	if len(os.Args) == 2 {
 		// Show usage on --help.
 		if os.Args[1] == "--help" {
-			fmt.Println("\n  " + cursor.Render(" llama ") + "\n")
+			fmt.Println("\n  " + cursor.Render(" llama ") + `
+
+    Arrows     :  Move cursor    
+    Enter      :  Enter directory
+    Backspace  :  Exit directory 
+    [A-Z]      :  Fuzzy search   
+    Esc        :  Exit with cd   
+    Ctrl+C     :  Exit with noop 
+`)
 			os.Exit(0)
 		}
 		// Maybe it is and argument, so get absolute path.
