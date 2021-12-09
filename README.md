@@ -12,7 +12,7 @@ Why another file manager? I wanted something simple and minimalistic,
 something to help me with faster navigation in the filesystem. A cd & 
 ls replacement. So I build "llama". It allows to quickly navigate 
 with fuzzy searching, cd integration is quite simple. Opens vim right
-from llama. That's it. Simple and dump as a llama.
+from llama. That's it. Simple and dumb as a llama.
 
 ## Install
 
