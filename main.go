@@ -21,6 +21,7 @@ var (
 	added     = lipgloss.NewStyle().Foreground(lipgloss.Color("#47DE47"))
 	untracked = lipgloss.NewStyle().Foreground(lipgloss.Color("#E84343"))
 	cursor    = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
+	bar       = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
 )
 
 func main() {
@@ -29,6 +30,11 @@ func main() {
 		die(err)
 	}
 	if len(os.Args) == 2 {
+		// Show usage on --help.
+		if os.Args[1] == "--help" {
+			fmt.Println("\n  " + cursor.Render(" llama ") + "\n")
+			os.Exit(0)
+		}
 		// Maybe it is and argument, so get absolute path.
 		path, err = filepath.Abs(os.Args[1])
 		if err != nil {
@@ -101,7 +107,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
-		m.height = msg.Height
+		m.height = msg.Height - 1 // Account for the location bar.
 		// Reset position history as c&r changes.
 		m.positions = make(map[string]position)
 		// Keep cursor at same place.
@@ -135,7 +141,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		switch keypress := msg.String(); keypress {
-		case "ctrl+c", "esc":
+		case "ctrl+c":
+			fmt.Println()
+			return m, tea.Quit
+
+		case "esc":
 			fmt.Println()
 			_, _ = fmt.Fprintln(os.Stderr, m.path)
 			return m, tea.Quit
@@ -320,12 +330,20 @@ start:
 		}
 		output[j] = Join(row, separator)
 	}
-
 	if len(output) >= m.offset+m.height {
 		output = output[m.offset : m.offset+m.height]
 	}
+	// Location bar.
+	location := m.path
+	if userHomeDir, err := os.UserHomeDir(); err == nil {
+		location = Replace(m.path, userHomeDir, "~", 1)
+	}
+	if len(location) > m.width {
+		location = location[len(location)-m.width:]
+	}
+	locationBar := bar.Render(location)
 
-	return Join(output, "\n")
+	return locationBar + "\n" + Join(output, "\n")
 }
 
 func (m *model) list() {
