@@ -79,6 +79,7 @@ func main() {
 	if err := p.Start(); err != nil {
 		die(err)
 	}
+	os.Exit(m.exitCode)
 }
 
 type model struct {
@@ -96,6 +97,7 @@ type model struct {
 	matchedIndexes []int                     // List of char found indexes.
 	prevName       string                    // Base name of previous directory before "up".
 	findPrevName   bool                      // On View(), set c&r to point to prevName.
+	exitCode       int                       // Exit code.
 }
 
 type position struct {
@@ -119,7 +121,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Reset position history as c&r changes.
 		m.positions = make(map[string]position)
 		// Keep cursor at same place.
-		m.prevName = m.fileAtCursor().Name()
+		m.prevName = m.cursorFileName()
 		m.findPrevName = true
 		// Also, m.c&r no longer point to correct indexes.
 		m.c = 0
@@ -151,15 +153,17 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch keypress := msg.String(); keypress {
 		case "ctrl+c":
 			fmt.Println()
+			m.exitCode = 2
 			return m, tea.Quit
 
 		case "esc":
 			fmt.Println()
 			_, _ = fmt.Fprintln(os.Stderr, m.path)
+			m.exitCode = 0
 			return m, tea.Quit
 
 		case "enter":
-			newPath := filepath.Join(m.path, m.fileAtCursor().Name())
+			newPath := filepath.Join(m.path, m.cursorFileName())
 			if fi := fileInfo(newPath); fi.IsDir() {
 				// Enter subdirectory.
 				m.path = newPath
@@ -176,7 +180,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.status()
 			} else {
 				// Open file.
-				cmd := exec.Command(lookup([]string{"LLAMA_EDITOR", "EDITOR"}, "less"), filepath.Join(m.path, m.fileAtCursor().Name()))
+				cmd := exec.Command(lookup([]string{"LLAMA_EDITOR", "EDITOR"}, "less"), filepath.Join(m.path, m.cursorFileName()))
 				cmd.Stdin = os.Stdin
 				cmd.Stdout = os.Stdout
 				// Note: no Stderr as redirect `llama 2> /tmp/path` can be used.
@@ -448,8 +452,12 @@ func (m *model) saveCursorPosition() {
 	}
 }
 
-func (m *model) fileAtCursor() os.FileInfo {
-	return m.files[m.c*m.rows+m.r]
+func (m *model) cursorFileName() string {
+	i := m.c*m.rows + m.r
+	if i < len(m.files) {
+		return m.files[i].Name()
+	}
+	return ""
 }
 
 func fileInfo(path string) os.FileInfo {

@@ -26,10 +26,7 @@ Put the next function into **~/.bashrc**:
 
 ```bash
 function ll {
-  llama "$@" 2> /tmp/path
-  if [[ -d `cat /tmp/path` ]]; then
-    cd `cat /tmp/path`
-  fi
+  llama "$@" 2> /tmp/path && cd "$(cat /tmp/path)"
 }
 ```
 
