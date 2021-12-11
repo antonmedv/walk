@@ -3,17 +3,17 @@ package main
 import (
 	"bytes"
 	"fmt"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/sahilm/fuzzy"
 	"io/fs"
-	"io/ioutil"
 	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
 	. "strings"
 	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/sahilm/fuzzy"
 )
 
 var (
@@ -56,7 +56,7 @@ func main() {
 		die(err)
 	}
 	if (fi.Mode() & os.ModeCharDevice) == 0 {
-		files, err := ioutil.ReadDir(path)
+		files, err := os.ReadDir(path)
 		if err != nil {
 			die(err)
 		}
@@ -84,7 +84,7 @@ func main() {
 
 type model struct {
 	path           string                    // Current dir path we are looking at.
-	files          []fs.FileInfo             // Files we are looking at.
+	files          []fs.DirEntry             // Files we are looking at.
 	c, r           int                       // Selector position in columns and rows.
 	columns, rows  int                       // Displayed amount of rows and columns.
 	width, height  int                       // Terminal size.
@@ -364,7 +364,7 @@ func (m *model) list() {
 	m.styles = nil
 
 	// ReadDir already returns files and dirs sorted by filename.
-	m.files, err = ioutil.ReadDir(m.path)
+	m.files, err = os.ReadDir(m.path)
 	if err != nil {
 		die(err)
 	}
