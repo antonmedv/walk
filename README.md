@@ -11,8 +11,8 @@ Llama — a terminal file manager.
 Why another file manager? I wanted something simple and minimalistic, 
 something to help me with faster navigation in the filesystem. A cd & 
 ls replacement. So I build "llama". It allows to quickly navigate 
-with fuzzy searching, cd integration is quite simple. Opens vim right
-from llama. That's it. Simple and dumb as a llama.
+with fuzzy searching; cd integration is quite simple. Open vim right
+from the llama. That's it. Simple and dumb as a llama.
 
 ## Install
 
@@ -45,7 +45,7 @@ process can't modify the working directory of the parent process.
 | `Ctrl+C`    | Exit with noop  |
 
 Use `LLAMA_EDITOR` environment variable to specify program for opening files.
-
+The `EDITOR` variable also supported. 
 ```bash
 export LLAMA_EDITOR=vim
 ```
