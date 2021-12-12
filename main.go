@@ -34,12 +34,12 @@ func main() {
 		if os.Args[1] == "--help" {
 			fmt.Println("\n  " + cursor.Render(" llama ") + `
 
-    Arrows     :  Move cursor    
-    Enter      :  Enter directory
-    Backspace  :  Exit directory 
-    [A-Z]      :  Fuzzy search   
-    Esc        :  Exit with cd   
-    Ctrl+C     :  Exit with noop 
+    h,j,k,l or Arrows  :  Move cursor
+    Enter              :  Enter directory
+    Backspace          :  Exit directory
+    /[A-Z]             :  Fuzzy search
+    Esc                :  Exit search or Exit with cd
+    Ctrl+C             :  Exit with noop
 `)
 			os.Exit(0)
 		}
@@ -93,6 +93,7 @@ type model struct {
 	editMode       bool                      // User opened file for editing.
 	positions      map[string]position       // Map of cursor positions per path.
 	search         string                    // Search file by this name.
+	searchMode     bool                      // fuzzy search with "/".
 	updatedAt      time.Time                 // Time of last key press.
 	matchedIndexes []int                     // List of char found indexes.
 	prevName       string                    // Base name of previous directory before "up".
@@ -129,7 +130,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		if msg.Type == tea.KeyRunes {
+		if msg.Type == tea.KeyRunes && m.searchMode {
 			// Input a regular character, do the search.
 			if time.Now().Sub(m.updatedAt).Seconds() >= 1 {
 				m.search = string(msg.Runes)
@@ -148,106 +149,116 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.c = index / m.rows
 				m.r = index % m.rows
 			}
-		}
 
-		switch keypress := msg.String(); keypress {
-		case "ctrl+c":
-			fmt.Println()
-			m.exitCode = 2
-			return m, tea.Quit
+		} else {
+			switch keypress := msg.String(); keypress {
+			case "/":
+				m.searchMode = true
 
-		case "esc":
-			fmt.Println()
-			_, _ = fmt.Fprintln(os.Stderr, m.path)
-			m.exitCode = 0
-			return m, tea.Quit
+			case "ctrl+c":
+				fmt.Println()
+				m.exitCode = 2
+				return m, tea.Quit
 
-		case "enter":
-			newPath := filepath.Join(m.path, m.cursorFileName())
-			if fi := fileInfo(newPath); fi.IsDir() {
-				// Enter subdirectory.
-				m.path = newPath
+			case "esc":
+				if m.searchMode {
+					m.searchMode = false
+				} else {
+					fmt.Println()
+					_, _ = fmt.Fprintln(os.Stderr, m.path)
+					m.exitCode = 0
+					return m, tea.Quit
+				}
+
+			case "enter":
+				m.searchMode = false
+				newPath := filepath.Join(m.path, m.cursorFileName())
+				if fi := fileInfo(newPath); fi.IsDir() {
+					// Enter subdirectory.
+					m.path = newPath
+					if p, ok := m.positions[m.path]; ok {
+						m.c = p.c
+						m.r = p.r
+						m.offset = p.offset
+					} else {
+						m.c = 0
+						m.r = 0
+						m.offset = 0
+					}
+					m.list()
+					m.status()
+				} else {
+					// Open file.
+					cmd := exec.Command(lookup([]string{"LLAMA_EDITOR", "EDITOR"}, "less"), filepath.Join(m.path, m.cursorFileName()))
+					cmd.Stdin = os.Stdin
+					cmd.Stdout = os.Stdout
+					// Note: no Stderr as redirect `llama 2> /tmp/path` can be used.
+					m.editMode = true
+					_ = cmd.Run()
+					m.editMode = false
+					return m, tea.HideCursor
+				}
+
+			case "backspace":
+				m.searchMode = false
+				m.prevName = filepath.Base(m.path)
+				m.path = filepath.Join(m.path, "..")
 				if p, ok := m.positions[m.path]; ok {
 					m.c = p.c
 					m.r = p.r
 					m.offset = p.offset
 				} else {
-					m.c = 0
-					m.r = 0
-					m.offset = 0
+					m.findPrevName = true
+					m.list()
+					m.status()
 				}
 				m.list()
 				m.status()
-			} else {
-				// Open file.
-				cmd := exec.Command(lookup([]string{"LLAMA_EDITOR", "EDITOR"}, "less"), filepath.Join(m.path, m.cursorFileName()))
-				cmd.Stdin = os.Stdin
-				cmd.Stdout = os.Stdout
-				// Note: no Stderr as redirect `llama 2> /tmp/path` can be used.
-				m.editMode = true
-				_ = cmd.Run()
-				m.editMode = false
-				return m, tea.HideCursor
-			}
 
-		case "backspace":
-			m.prevName = filepath.Base(m.path)
-			m.path = filepath.Join(m.path, "..")
-			if p, ok := m.positions[m.path]; ok {
-				m.c = p.c
-				m.r = p.r
-				m.offset = p.offset
-			} else {
-				m.findPrevName = true
-				m.list()
-				m.status()
-			}
-			m.list()
-			m.status()
+			case "up", "k":
+				m.r--
+				if m.r < 0 {
+					m.r = m.rows - 1
+					m.c--
+				}
+				if m.c < 0 {
+					m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
+					m.c = m.columns - 1
+				}
 
-		case "up":
-			m.r--
-			if m.r < 0 {
-				m.r = m.rows - 1
+			case "down", "j":
+				m.r++
+				if m.r >= m.rows {
+					m.r = 0
+					m.c++
+				}
+				if m.c >= m.columns {
+					m.c = 0
+				}
+				if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
+					m.r = 0
+					m.c = 0
+				}
+
+			case "left", "h":
 				m.c--
-			}
-			if m.c < 0 {
-				m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
-				m.c = m.columns - 1
-			}
+				if m.c < 0 {
+					m.c = m.columns - 1
+				}
+				if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
+					m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
+					m.c = m.columns - 1
+				}
 
-		case "down":
-			m.r++
-			if m.r >= m.rows {
-				m.r = 0
+			case "right", "l":
 				m.c++
-			}
-			if m.c >= m.columns {
-				m.c = 0
-			}
-			if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
-				m.r = 0
-				m.c = 0
-			}
-
-		case "left":
-			m.c--
-			if m.c < 0 {
-				m.c = m.columns - 1
-			}
-			if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
-				m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
-				m.c = m.columns - 1
-			}
-
-		case "right":
-			m.c++
-			if m.c >= m.columns {
-				m.c = 0
-			}
-			if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
-				m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
-				m.c = m.columns - 1
+				if m.c >= m.columns {
+					m.c = 0
+				}
+				if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
+					m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
+					m.c = m.columns - 1
+				}
 			}
 		}
 	}
