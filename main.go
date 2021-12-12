@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	. "strings"
 	"time"
 
@@ -34,12 +35,12 @@ func main() {
 		if os.Args[1] == "--help" {
 			fmt.Println("\n  " + cursor.Render(" llama ") + `
 
-    h,j,k,l or Arrows  :  Move cursor
-    Enter              :  Enter directory
-    Backspace          :  Exit directory
-    /[A-Z]             :  Fuzzy search
-    Esc                :  Exit search or Exit with cd
-    Ctrl+C             :  Exit with noop
+    Arrows    :  Move cursor
+    Enter     :  Enter directory
+    Backspace :  Exit directory
+    [A-Z]     :  Fuzzy search
+    Esc       :  Exit with cd
+    Ctrl+C    :  Exit with noop
 `)
 			os.Exit(0)
 		}
@@ -91,6 +92,7 @@ type model struct {
 	offset         int                       // Scroll position.
 	styles         map[string]lipgloss.Style // Colors of different files based on git status.
 	editMode       bool                      // User opened file for editing.
+	vimMode        bool                      // enable vim key bindings.
 	positions      map[string]position       // Map of cursor positions per path.
 	search         string                    // Search file by this name.
 	searchMode     bool                      // fuzzy search with "/".
@@ -130,6 +132,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		m.vimMode, _ = strconv.ParseBool(lookup([]string{"LLAMA_VIM_KEYBINDINGS"}, "false"))
+
 		if msg.Type == tea.KeyRunes && m.searchMode {
 			// Input a regular character, do the search.
 			if time.Now().Sub(m.updatedAt).Seconds() >= 1 {
@@ -149,11 +153,17 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.c = index / m.rows
 				m.r = index % m.rows
 			}
-
 		} else {
+			navKeys := []string{"up", "down", "left", "right"}
+			if m.vimMode {
+				navKeys = []string{"k", "j", "h", "l"}
+			}
+
 			switch keypress := msg.String(); keypress {
 			case "/":
-				m.searchMode = true
+				if m.vimMode {
+					m.searchMode = true
+				}
 
 			case "ctrl+c":
 				fmt.Println()
@@ -161,7 +171,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 
 			case "esc":
-				if m.searchMode {
+				if m.searchMode && m.vimMode {
 					m.searchMode = false
 				} else {
 					fmt.Println()
@@ -215,7 +225,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.list()
 				m.status()
 
-			case "up", "k":
+			case navKeys[0]:
 				m.r--
 				if m.r < 0 {
 					m.r = m.rows - 1
@@ -226,7 +236,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.c = m.columns - 1
 				}
 
-			case "down", "j":
+			case navKeys[1]:
 				m.r++
 				if m.r >= m.rows {
 					m.r = 0
@@ -240,7 +250,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.c = 0
 				}
 
-			case "left", "h":
+			case navKeys[2]:
 				m.c--
 				if m.c < 0 {
 					m.c = m.columns - 1
@@ -250,7 +260,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.c = m.columns - 1
 				}
 
-			case "right", "l":
+			case navKeys[3]:
 				m.c++
 				if m.c >= m.columns {
 					m.c = 0

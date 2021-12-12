@@ -35,20 +35,32 @@ process can't modify the working directory of the parent process.
 
 ## Usage
 
-| Key binding        | Description                  |
-|--------------------|------------------------------|
-| `hjkl` or `Arrows` | Move cursor                  |
-| `Enter`            | Enter directory              |
-| `Backspace`        | Exit directory               |
-| `/[A-Z]`           | Fuzzy search                 |
-| `Esc`              | Exit search or Exit with cd  |
-| `Ctrl+C`           | Exit with noop               |
+| Key binding | Description     |
+|-------------|-----------------|
+| `Arrows`    | Move cursor     |
+| `Enter`     | Enter directory |
+| `Backspace` | Exit directory  |
+| `[A-Z]`     | Fuzzy search    |
+| `Esc`       | Exit with cd    |
+| `Ctrl+C`    | Exit with noop  |
 
 Use `LLAMA_EDITOR` environment variable to specify program for opening files.
 The `EDITOR` variable also supported.
 ```bash
 export LLAMA_EDITOR=vim
 ```
+
+### Vim Keybindings
+
+Use `LLAMA_VIM_KEYBINDINGS` environment variable to enable vim keybindings.
+```bash
+export LLAMA_VIM_KEYBINDINGS=true
+```
+| Key binding | Description                 |
+|-------------|-----------------------------|
+| `hjkl`      | Move cursor                 |
+| `/[A-Z]`    | Fuzzy search                |
+| `Esc`       | Exit search or Exit with cd |
 
 ## License
 
