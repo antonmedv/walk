@@ -44,10 +44,11 @@ process can't modify the working directory of the parent process.
 | `Esc`       | Exit with cd    |
 | `Ctrl+C`    | Exit with noop  |
 
-Use `LLAMA_EDITOR` environment variable to specify program for opening files.
-The `EDITOR` variable also supported. 
+
+The `EDITOR` or `LLAMA_EDITOR` environment variable used for openning files from the llama.
+
 ```bash
-export LLAMA_EDITOR=vim
+export EDITOR=vim
 ```
 
 ## License
