@@ -11,18 +11,25 @@ import (
 	. "strings"
 	"time"
 
+	"github.com/inancgumus/screen"
+
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/sahilm/fuzzy"
 )
 
 var (
+	editorMod = false
+	tempEditor = ""
 	modified  = lipgloss.NewStyle().Foreground(lipgloss.Color("#5050F2"))
 	added     = lipgloss.NewStyle().Foreground(lipgloss.Color("#47DE47"))
 	untracked = lipgloss.NewStyle().Foreground(lipgloss.Color("#E84343"))
 	cursor    = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
 	bar       = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
 )
+
+
 
 func main() {
 	path, err := os.Getwd()
@@ -39,7 +46,8 @@ func main() {
     Backspace  :  Exit directory 
     [A-Z]      :  Fuzzy search   
     Esc        :  Exit with cd   
-    Ctrl+C     :  Exit with noop 
+    Ctrl+E     :  Enter and exit editor selection 
+	Ctrl+C     :  Exit with noop 
 `)
 			os.Exit(0)
 		}
@@ -66,7 +74,13 @@ func main() {
 		return
 	}
 
+	ti := textinput.NewModel()
+	ti.Placeholder = ""
+	ti.CharLimit = 156
+	ti.Width = 20
+
 	m := &model{
+		textInput: ti,
 		path:      path,
 		width:     80,
 		height:    60,
@@ -74,6 +88,9 @@ func main() {
 	}
 	m.list()
 	m.status()
+
+	screen.Clear()
+	screen.MoveTopLeft()
 
 	p := tea.NewProgram(m)
 	if err := p.Start(); err != nil {
@@ -83,6 +100,7 @@ func main() {
 }
 
 type model struct {
+	textInput			   textinput.Model
 	path           string                    // Current dir path we are looking at.
 	files          []fs.DirEntry             // Files we are looking at.
 	c, r           int                       // Selector position in columns and rows.
@@ -98,6 +116,7 @@ type model struct {
 	prevName       string                    // Base name of previous directory before "up".
 	findPrevName   bool                      // On View(), set c&r to point to prevName.
 	exitCode       int                       // Exit code.
+	err			   error
 }
 
 type position struct {
@@ -113,7 +132,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.editMode {
 		return m, nil
 	}
-
+	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -126,10 +145,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Also, m.c&r no longer point to correct indexes.
 		m.c = 0
 		m.r = 0
-		return m, nil
+		m.textInput, cmd = m.textInput.Update(msg)
+		return m, cmd
 
 	case tea.KeyMsg:
-		if msg.Type == tea.KeyRunes {
+		if msg.Type == tea.KeyRunes && editorMod == false {
 			// Input a regular character, do the search.
 			if time.Now().Sub(m.updatedAt).Seconds() >= 1 {
 				m.search = string(msg.Runes)
@@ -150,11 +170,24 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+		if msg.Type ==tea.KeyRunes && editorMod == true{
+			m.textInput.SetValue(m.textInput.Value()+string(msg.Runes))
+		}
+
 		switch keypress := msg.String(); keypress {
 		case "ctrl+c":
 			fmt.Println()
 			m.exitCode = 2
 			return m, tea.Quit
+
+		case "ctrl+e":
+			if editorMod{
+				editorMod=false
+				tempEditor = m.textInput.Value()
+			}else{
+				m.textInput.SetValue("")
+				editorMod=true
+			}
 
 		case "esc":
 			fmt.Println()
@@ -180,7 +213,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.status()
 			} else {
 				// Open file.
-				cmd := exec.Command(lookup([]string{"LLAMA_EDITOR", "EDITOR"}, "less"), filepath.Join(m.path, m.cursorFileName()))
+				var cmd *exec.Cmd
+				if tempEditor != ""{
+					cmd = exec.Command(tempEditor, filepath.Join(m.path, m.cursorFileName()))
+				}else {
+					cmd = exec.Command(lookup([]string{"LLAMA_EDITOR", "EDITOR"}, "less"), filepath.Join(m.path, m.cursorFileName()))
+				}
+
 				cmd.Stdin = os.Stdin
 				cmd.Stdout = os.Stdout
 				// Note: no Stderr as redirect `llama 2> /tmp/path` can be used.
@@ -257,6 +296,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) View() string {
+
+
 	if len(m.files) == 0 {
 		return "No files"
 	}
@@ -354,6 +395,8 @@ start:
 		location = location[len(location)-m.width:]
 	}
 	locationBar := bar.Render(location)
+
+	if editorMod{locationBar = locationBar + "\n" + m.textInput.View()}
 
 	return locationBar + "\n" + Join(output, "\n")
 }
