@@ -13,6 +13,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 	"github.com/sahilm/fuzzy"
 )
 
@@ -27,12 +28,12 @@ var (
 func main() {
 	path, err := os.Getwd()
 	if err != nil {
-		die(err)
+		panic(err)
 	}
 	if len(os.Args) == 2 {
 		// Show usage on --help.
 		if os.Args[1] == "--help" {
-			fmt.Println("\n  " + cursor.Render(" llama ") + `
+			_, _ = fmt.Fprintln(os.Stderr, "\n  "+cursor.Render(" llama ")+`
 
     Arrows     :  Move cursor    
     Enter      :  Enter directory
@@ -46,24 +47,8 @@ func main() {
 		// Maybe it is and argument, so get absolute path.
 		path, err = filepath.Abs(os.Args[1])
 		if err != nil {
-			die(err)
+			panic(err)
 		}
-	}
-
-	// If stdout of ll piped, use ls behavior: one line, no colors.
-	fi, err := os.Stdout.Stat()
-	if err != nil {
-		die(err)
-	}
-	if (fi.Mode() & os.ModeCharDevice) == 0 {
-		files, err := os.ReadDir(path)
-		if err != nil {
-			die(err)
-		}
-		for _, file := range files {
-			fmt.Println(file.Name())
-		}
-		return
 	}
 
 	m := &model{
@@ -75,9 +60,10 @@ func main() {
 	m.list()
 	m.status()
 
-	p := tea.NewProgram(m)
+	lipgloss.SetColorProfile(colorProfile())
+	p := tea.NewProgram(m, tea.WithOutput(os.Stderr))
 	if err := p.Start(); err != nil {
-		die(err)
+		panic(err)
 	}
 	os.Exit(m.exitCode)
 }
@@ -152,13 +138,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch keypress := msg.String(); keypress {
 		case "ctrl+c":
-			fmt.Println()
+			_, _ = fmt.Fprintln(os.Stderr) // Keep last item visible after prompt.
 			m.exitCode = 2
 			return m, tea.Quit
 
 		case "esc":
-			fmt.Println()
-			_, _ = fmt.Fprintln(os.Stderr, m.path)
+			_, _ = fmt.Fprintln(os.Stderr) // Keep last item visible after prompt.
+			fmt.Println(m.path)            // Write to cd.
 			m.exitCode = 0
 			return m, tea.Quit
 
@@ -182,8 +168,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Open file.
 				cmd := exec.Command(lookup([]string{"LLAMA_EDITOR", "EDITOR"}, "less"), filepath.Join(m.path, m.cursorFileName()))
 				cmd.Stdin = os.Stdin
-				cmd.Stdout = os.Stdout
-				// Note: no Stderr as redirect `llama 2> /tmp/path` can be used.
+				cmd.Stdout = os.Stderr // Render to stderr.
 				m.editMode = true
 				_ = cmd.Run()
 				m.editMode = false
@@ -366,7 +351,7 @@ func (m *model) list() {
 	// ReadDir already returns files and dirs sorted by filename.
 	m.files, err = os.ReadDir(m.path)
 	if err != nil {
-		die(err)
+		panic(err)
 	}
 }
 
@@ -463,7 +448,7 @@ func (m *model) cursorFileName() string {
 func fileInfo(path string) os.FileInfo {
 	fi, err := os.Stat(path)
 	if err != nil {
-		die(err)
+		panic(err)
 	}
 	return fi
 }
@@ -491,7 +476,32 @@ func lookup(names []string, val string) string {
 	return val
 }
 
-func die(msg interface{}) {
-	fmt.Println(msg)
-	os.Exit(1)
+// Copy-pasted from github.com/muesli/termenv@v0.9.0/termenv_unix.go.
+// TODO: Refactor after, [feature](https://ï.at/stderr) implemented.
+func colorProfile() termenv.Profile {
+	term := os.Getenv("TERM")
+	colorTerm := os.Getenv("COLORTERM")
+
+	switch ToLower(colorTerm) {
+	case "24bit":
+		fallthrough
+	case "truecolor":
+		if term == "screen" || !HasPrefix(term, "screen") {
+			// enable TrueColor in tmux, but not for old-school screen
+			return termenv.TrueColor
+		}
+	case "yes":
+		fallthrough
+	case "true":
+		return termenv.ANSI256
+	}
+
+	if Contains(term, "256color") {
+		return termenv.ANSI256
+	}
+	if Contains(term, "color") {
+		return termenv.ANSI
+	}
+
+	return termenv.Ascii
 }

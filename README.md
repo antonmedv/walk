@@ -22,11 +22,11 @@ go get github.com/antonmedv/llama
 
 Or download [prebuild binaries](https://github.com/antonmedv/llama/releases).
 
-Put the next function into **~/.bashrc**:
+Put the next alias into **~/.bashrc**:
 
 ```bash
 function ll {
-  llama "$@" 2> /tmp/path && cd "$(cat /tmp/path)"
+  cd "$(llama "$@")"
 }
 ```
 
