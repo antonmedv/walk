@@ -3,6 +3,10 @@ package main
 import (
 	"bytes"
 	"fmt"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/inancgumus/screen"
+	"github.com/sahilm/fuzzy"
 	"io/fs"
 	"io/ioutil"
 	"math"
@@ -12,13 +16,6 @@ import (
 	"regexp"
 	. "strings"
 	"time"
-
-	"github.com/inancgumus/screen"
-
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/sahilm/fuzzy"
 )
 
 var (
@@ -113,13 +110,7 @@ func main() {
 		return
 	}
 
-	ti := textinput.NewModel()
-	ti.Placeholder = ""
-	ti.CharLimit = 156
-	ti.Width = 20
-
 	m := &model{
-		textInput: ti,
 		path:      path,
 		width:     80,
 		height:    60,
@@ -139,7 +130,6 @@ func main() {
 }
 
 type model struct {
-	textInput			   textinput.Model
 	path           string                    // Current dir path we are looking at.
 	files          []fs.DirEntry             // Files we are looking at.
 	c, r           int                       // Selector position in columns and rows.
@@ -184,7 +174,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Also, m.c&r no longer point to correct indexes.
 		m.c = 0
 		m.r = 0
-		m.textInput, cmd = m.textInput.Update(msg)
 		return m, cmd
 
 	case tea.KeyMsg:
