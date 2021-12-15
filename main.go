@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"fmt"
 	"io/fs"
+	"io/ioutil"
 	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	. "strings"
 	"time"
 
@@ -20,8 +22,6 @@ import (
 )
 
 var (
-	editorMod = false
-	tempEditor = ""
 	modified  = lipgloss.NewStyle().Foreground(lipgloss.Color("#5050F2"))
 	added     = lipgloss.NewStyle().Foreground(lipgloss.Color("#47DE47"))
 	untracked = lipgloss.NewStyle().Foreground(lipgloss.Color("#E84343"))
@@ -29,7 +29,46 @@ var (
 	bar       = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
 )
 
+func checkExtension(extension string) string {
 
+	var searchPaths []string
+	var extHandling []byte
+
+	// Getting environmental list ensures we get the correct home directory, and allows extending to other directories in the future
+	environsList := os.Environ()
+	for _, envVar := range environsList {
+		if envVar[0:4] == "HOME"{
+			varTemp := envVar[5:]
+			searchPaths = append(searchPaths, varTemp)
+		}
+	}
+
+	// Future looking code for when other directories are checked
+
+	for _, singlePath := range searchPaths {
+		dirListing, _ := ioutil.ReadDir(singlePath)
+		for _, fileListing := range dirListing {
+			if pathTest, _ := regexp.MatchString("\\.llamarc", fileListing.Name()); pathTest {
+				extHandling, _ = ioutil.ReadFile(filepath.Join(singlePath, fileListing.Name()))
+			}
+		}
+	}
+	// If .llamarc doesn't exist, default to less
+	if len(extHandling) == 0 {
+		return "less"
+	// Otherwise, open and look through line by line
+	} else {
+		extLine := Split(string(extHandling), "\n")
+		for _, line := range extLine {
+			if extension == Split(line, ":")[0]{
+				return Split(line, ":")[1]
+			}
+		}
+
+	}
+	// If no matches found, default to less
+	return "less"
+}
 
 func main() {
 	path, err := os.Getwd()
@@ -149,7 +188,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case tea.KeyMsg:
-		if msg.Type == tea.KeyRunes && editorMod == false {
+		if msg.Type == tea.KeyRunes {
 			// Input a regular character, do the search.
 			if time.Now().Sub(m.updatedAt).Seconds() >= 1 {
 				m.search = string(msg.Runes)
@@ -170,24 +209,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-		if msg.Type ==tea.KeyRunes && editorMod == true{
-			m.textInput.SetValue(m.textInput.Value()+string(msg.Runes))
-		}
-
 		switch keypress := msg.String(); keypress {
 		case "ctrl+c":
 			fmt.Println()
 			m.exitCode = 2
 			return m, tea.Quit
-
-		case "ctrl+e":
-			if editorMod{
-				editorMod=false
-				tempEditor = m.textInput.Value()
-			}else{
-				m.textInput.SetValue("")
-				editorMod=true
-			}
 
 		case "esc":
 			fmt.Println()
@@ -214,11 +240,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				// Open file.
 				var cmd *exec.Cmd
-				if tempEditor != ""{
-					cmd = exec.Command(tempEditor, filepath.Join(m.path, m.cursorFileName()))
-				}else {
-					cmd = exec.Command(lookup([]string{"LLAMA_EDITOR", "EDITOR"}, "less"), filepath.Join(m.path, m.cursorFileName()))
-				}
+
+				// Get extension as defined as the last word after the last period
+				extension := Split(m.cursorFileName(),".")[len(Split(m.cursorFileName(),"."))-1]
+				// Direct load extension handler into exec
+				cmd = exec.Command(checkExtension(extension), filepath.Join(m.path, m.cursorFileName()))
 
 				cmd.Stdin = os.Stdin
 				cmd.Stdout = os.Stdout
@@ -395,8 +421,6 @@ start:
 		location = location[len(location)-m.width:]
 	}
 	locationBar := bar.Render(location)
-
-	if editorMod{locationBar = locationBar + "\n" + m.textInput.View()}
 
 	return locationBar + "\n" + Join(output, "\n")
 }
