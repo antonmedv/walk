@@ -222,12 +222,12 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					fileSource = filepath.Join(m.path,m.cursorFileName())
 					m.contextMenu = false
 				case "paste":
-					cmd := exec.Command("cp",fileSource,".")
+					cmd := exec.Command("cp","-r",fileSource, m.path)
 					_= cmd.Run()
 					m.list()
 					m.contextMenu = false
 				case "move":
-					cmd := exec.Command("mv",fileSource,".")
+					cmd := exec.Command("mv",fileSource,m.path)
 					_= cmd.Run()
 					m.list()
 					m.contextMenu = false
@@ -237,7 +237,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.list()
 					m.contextMenu = false
 				case "settings":
-
 					homeDir, _ := os.UserHomeDir()
 					cmd := exec.Command("vim", filepath.Join(homeDir, ".llamarc"))
 					cmd.Stdin = os.Stdin
@@ -308,10 +307,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "up":
 			if m.contextMenu {
-				if contextCursor > 0 {
+				if contextCursor >= 0 {
 					contextCursor = contextCursor - 1
 				}
-				if contextCursor == 0 {
+				if contextCursor == -1 {
 					contextCursor = len(contextOptions) - 1
 				}
 			}else {
@@ -379,10 +378,18 @@ func (m *model) View() string {
 	if m.contextMenu {
 		selectedFile := ""
 		if fileSource != "" {
-			selectedFile = "Selected File: " + fileSource
+			selectedFile = modified.Render("Selected File: " + fileSource)
 		}else {selectedFile = ""}
-
-		buildString := "Focused file: " + m.cursorFileName() + "\n Operation > " + contextOptions[contextCursor] + "\n" + selectedFile + "\n" + "Spacebar to exit"
+		buildString := bar.Render("Context Menu") + "\n"
+		buildString += added.Render("Focused file: " + m.cursorFileName()) + "\n"
+		for n, option := range contextOptions{
+			if n == contextCursor{
+				buildString += " > " + cursor.Render(option) + "\n"
+			} else {
+				buildString += " > " + option + "\n"
+			}
+		}
+		buildString += "\n" + selectedFile + "\n" + "Spacebar to exit"
 	return buildString
 	} else {
 
