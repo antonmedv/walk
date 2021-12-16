@@ -19,6 +19,9 @@ import (
 )
 
 var (
+	contextOptions = []string{"select","paste","delete","move","settings"}
+	contextCursor = 0
+	fileSource = ""
 	modified  = lipgloss.NewStyle().Foreground(lipgloss.Color("#5050F2"))
 	added     = lipgloss.NewStyle().Foreground(lipgloss.Color("#47DE47"))
 	untracked = lipgloss.NewStyle().Foreground(lipgloss.Color("#E84343"))
@@ -111,6 +114,7 @@ func main() {
 	}
 
 	m := &model{
+		contextMenu: false,
 		path:      path,
 		width:     80,
 		height:    60,
@@ -130,6 +134,7 @@ func main() {
 }
 
 type model struct {
+	contextMenu	   bool						 // Whether to display the context menu or not
 	path           string                    // Current dir path we are looking at.
 	files          []fs.DirEntry             // Files we are looking at.
 	c, r           int                       // Selector position in columns and rows.
@@ -211,37 +216,88 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case "enter":
-			newPath := filepath.Join(m.path, m.cursorFileName())
-			if fi := fileInfo(newPath); fi.IsDir() {
-				// Enter subdirectory.
-				m.path = newPath
-				if p, ok := m.positions[m.path]; ok {
-					m.c = p.c
-					m.r = p.r
-					m.offset = p.offset
-				} else {
-					m.c = 0
-					m.r = 0
-					m.offset = 0
+			if m.contextMenu {
+				switch curOption := contextOptions[contextCursor]; curOption {
+				case "select":
+					fileSource = filepath.Join(m.path,m.cursorFileName())
+					m.contextMenu = false
+				case "paste":
+					cmd := exec.Command("cp",fileSource,".")
+					_= cmd.Run()
+					m.list()
+					m.contextMenu = false
+				case "move":
+					cmd := exec.Command("mv",fileSource,".")
+					_= cmd.Run()
+					m.list()
+					m.contextMenu = false
+				case "delete":
+					cmd := exec.Command("rm","-rf",filepath.Join(m.path,m.cursorFileName()))
+					_= cmd.Run()
+					m.list()
+					m.contextMenu = false
+				case "settings":
+					var varTemp string
+					environsList := os.Environ()
+					for _, envVar := range environsList {
+						if envVar[0:4] == "HOME" {
+							varTemp = envVar[5:]
+						}
+						filepath.Join(varTemp, ".llamarc")
+						cmd := exec.Command("vim", filepath.Join(varTemp, ".llamarc"))
+
+						cmd.Stdin = os.Stdin
+						cmd.Stdout = os.Stdout
+						// Note: no Stderr as redirect `llama 2> /tmp/path` can be used.
+						m.editMode = true
+						_ = cmd.Run()
+						m.editMode = false
+
+						return m, tea.HideCursor
+
+					}
 				}
-				m.list()
-				m.status()
 			} else {
-				// Open file.
-				var cmd *exec.Cmd
 
-				// Get extension as defined as the last word after the last period
-				extension := Split(m.cursorFileName(),".")[len(Split(m.cursorFileName(),"."))-1]
-				// Direct load extension handler into exec
-				cmd = exec.Command(checkExtension(extension), filepath.Join(m.path, m.cursorFileName()))
+				newPath := filepath.Join(m.path, m.cursorFileName())
+				if fi := fileInfo(newPath); fi.IsDir() {
+					// Enter subdirectory.
+					m.path = newPath
+					if p, ok := m.positions[m.path]; ok {
+						m.c = p.c
+						m.r = p.r
+						m.offset = p.offset
+					} else {
+						m.c = 0
+						m.r = 0
+						m.offset = 0
+					}
+					m.list()
+					m.status()
+				} else {
+					// Open file.
+					var cmd *exec.Cmd
 
-				cmd.Stdin = os.Stdin
-				cmd.Stdout = os.Stdout
-				// Note: no Stderr as redirect `llama 2> /tmp/path` can be used.
-				m.editMode = true
-				_ = cmd.Run()
-				m.editMode = false
-				return m, tea.HideCursor
+					// Get extension as defined as the last word after the last period
+					extension := Split(m.cursorFileName(), ".")[len(Split(m.cursorFileName(), "."))-1]
+					// Direct load extension handler into exec
+					cmd = exec.Command(checkExtension(extension), filepath.Join(m.path, m.cursorFileName()))
+
+					cmd.Stdin = os.Stdin
+					cmd.Stdout = os.Stdout
+					// Note: no Stderr as redirect `llama 2> /tmp/path` can be used.
+					m.editMode = true
+					_ = cmd.Run()
+					m.editMode = false
+					return m, tea.HideCursor
+				}
+			}
+
+		case " ":
+			if m.contextMenu{
+				m.contextMenu = false
+			}else{
+				m.contextMenu=true
 			}
 
 		case "backspace":
@@ -260,30 +316,47 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.status()
 
 		case "up":
-			m.r--
-			if m.r < 0 {
-				m.r = m.rows - 1
-				m.c--
-			}
-			if m.c < 0 {
-				m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
-				m.c = m.columns - 1
+			if m.contextMenu {
+				if contextCursor > 0 {
+					contextCursor = contextCursor - 1
+				}
+				if contextCursor == 0 {
+					contextCursor = len(contextOptions) - 1
+				}
+			}else {
+				m.r--
+				if m.r < 0 {
+					m.r = m.rows - 1
+					m.c--
+				}
+				if m.c < 0 {
+					m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
+					m.c = m.columns - 1
+				}
 			}
 
 		case "down":
-			m.r++
-			if m.r >= m.rows {
-				m.r = 0
-				m.c++
-			}
-			if m.c >= m.columns {
-				m.c = 0
-			}
-			if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
-				m.r = 0
-				m.c = 0
-			}
-
+			if m.contextMenu {
+				if contextCursor < len(contextOptions) {
+					contextCursor = contextCursor + 1
+				}
+				if contextCursor == len(contextOptions){
+					contextCursor = 0
+				}
+				} else {
+					m.r++
+					if m.r >= m.rows {
+						m.r = 0
+						m.c++
+					}
+					if m.c >= m.columns {
+						m.c = 0
+					}
+					if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
+						m.r = 0
+						m.c = 0
+					}
+				}
 		case "left":
 			m.c--
 			if m.c < 0 {
@@ -312,108 +385,117 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *model) View() string {
 
+	if m.contextMenu {
+		selectedFile := ""
+		if fileSource != "" {
+			selectedFile = "Selected File: " + fileSource
+		}else {selectedFile = ""}
 
-	if len(m.files) == 0 {
-		return "No files"
-	}
+		buildString := "Focused file: " + m.cursorFileName() + "\n Operation > " + contextOptions[contextCursor] + "\n" + selectedFile + "\n" + "Spacebar to exit"
+	return buildString
+	} else {
 
-	// If it's possible to fit all files in one column on a third of the screen,
-	// just use one column. Otherwise, let's squeeze listing in half of screen.
-	m.columns = len(m.files) / (m.height / 3)
-	if m.columns <= 0 {
-		m.columns = 1
-	}
-
-start:
-	// Let's try to fit everything in terminal width with this many columns.
-	// If we are not able to do it, decrease column number and goto start.
-	m.rows = int(math.Ceil(float64(len(m.files)) / float64(m.columns)))
-	names := make([][]string, m.columns)
-	n := 0
-	for i := 0; i < m.columns; i++ {
-		names[i] = make([]string, m.rows)
-		// Columns size is going to be of max file name size.
-		max := 0
-		for j := 0; j < m.rows; j++ {
-			name := ""
-			if n < len(m.files) {
-				name = m.files[n].Name()
-				if m.findPrevName && m.prevName == name {
-					m.c = i
-					m.r = j
-				}
-				if m.files[n].IsDir() {
-					// Dirs should have a slash at the end.
-					name += "/"
-				}
-				n++
-			}
-			if max < len(name) {
-				max = len(name)
-			}
-			names[i][j] = name
+		if len(m.files) == 0 {
+			return "No files"
 		}
-		// Append spaces to make all names in one column of same size.
-		for j := 0; j < m.rows; j++ {
-			names[i][j] += Repeat(" ", max-len(names[i][j]))
-		}
-	}
 
-	const separator = "    " // Separator between columns.
-	for j := 0; j < m.rows; j++ {
-		row := make([]string, m.columns)
+		// If it's possible to fit all files in one column on a third of the screen,
+		// just use one column. Otherwise, let's squeeze listing in half of screen.
+		m.columns = len(m.files) / (m.height / 3)
+		if m.columns <= 0 {
+			m.columns = 1
+		}
+
+	start:
+		// Let's try to fit everything in terminal width with this many columns.
+		// If we are not able to do it, decrease column number and goto start.
+		m.rows = int(math.Ceil(float64(len(m.files)) / float64(m.columns)))
+		names := make([][]string, m.columns)
+		n := 0
 		for i := 0; i < m.columns; i++ {
-			row[i] = names[i][j]
-		}
-		if len(Join(row, separator)) > m.width && m.columns > 1 {
-			// Yep. No luck, let's decrease number of columns and try one more time.
-			m.columns--
-			goto start
-		}
-	}
-
-	// If we need to select previous directory on "up".
-	if m.findPrevName {
-		m.findPrevName = false
-		m.updateOffset()
-		m.saveCursorPosition()
-	}
-
-	// Let's add colors from git status to file names.
-	output := make([]string, m.rows)
-	for j := 0; j < m.rows; j++ {
-		row := make([]string, m.columns)
-		for i := 0; i < m.columns; i++ {
-			if i == m.c && j == m.r {
-				row[i] = cursor.Render(names[i][j])
-				continue
+			names[i] = make([]string, m.rows)
+			// Columns size is going to be of max file name size.
+			max := 0
+			for j := 0; j < m.rows; j++ {
+				name := ""
+				if n < len(m.files) {
+					name = m.files[n].Name()
+					if m.findPrevName && m.prevName == name {
+						m.c = i
+						m.r = j
+					}
+					if m.files[n].IsDir() {
+						// Dirs should have a slash at the end.
+						name += "/"
+					}
+					n++
+				}
+				if max < len(name) {
+					max = len(name)
+				}
+				names[i][j] = name
 			}
-			s, ok := m.styles[TrimRight(names[i][j], " ")]
-			if ok {
-				row[i] = s.Render(names[i][j])
-			} else {
+			// Append spaces to make all names in one column of same size.
+			for j := 0; j < m.rows; j++ {
+				names[i][j] += Repeat(" ", max-len(names[i][j]))
+			}
+		}
+
+		const separator = "    " // Separator between columns.
+		for j := 0; j < m.rows; j++ {
+			row := make([]string, m.columns)
+			for i := 0; i < m.columns; i++ {
 				row[i] = names[i][j]
 			}
-
+			if len(Join(row, separator)) > m.width && m.columns > 1 {
+				// Yep. No luck, let's decrease number of columns and try one more time.
+				m.columns--
+				goto start
+			}
 		}
-		output[j] = Join(row, separator)
-	}
-	if len(output) >= m.offset+m.height {
-		output = output[m.offset : m.offset+m.height]
-	}
-	// Location bar.
-	location := m.path
-	if userHomeDir, err := os.UserHomeDir(); err == nil {
-		location = Replace(m.path, userHomeDir, "~", 1)
-	}
-	if len(location) > m.width {
-		location = location[len(location)-m.width:]
-	}
-	locationBar := bar.Render(location)
 
-	return locationBar + "\n" + Join(output, "\n")
+		// If we need to select previous directory on "up".
+		if m.findPrevName {
+			m.findPrevName = false
+			m.updateOffset()
+			m.saveCursorPosition()
+		}
+
+		// Let's add colors from git status to file names.
+		output := make([]string, m.rows)
+		for j := 0; j < m.rows; j++ {
+			row := make([]string, m.columns)
+			for i := 0; i < m.columns; i++ {
+				if i == m.c && j == m.r {
+					row[i] = cursor.Render(names[i][j])
+					continue
+				}
+				s, ok := m.styles[TrimRight(names[i][j], " ")]
+				if ok {
+					row[i] = s.Render(names[i][j])
+				} else {
+					row[i] = names[i][j]
+				}
+
+			}
+			output[j] = Join(row, separator)
+		}
+		if len(output) >= m.offset+m.height {
+			output = output[m.offset : m.offset+m.height]
+		}
+		// Location bar.
+		location := m.path
+		if userHomeDir, err := os.UserHomeDir(); err == nil {
+			location = Replace(m.path, userHomeDir, "~", 1)
+		}
+		if len(location) > m.width {
+			location = location[len(location)-m.width:]
+		}
+		locationBar := bar.Render(location)
+
+		return locationBar + "\n" + Join(output, "\n")
+	}
 }
-
 func (m *model) list() {
 	var err error
 	m.files = nil
@@ -450,6 +532,7 @@ func (m *model) status() {
 			}
 		}
 	}
+
 }
 
 func (m *model) gitRepo() (string, error) {
