@@ -30,6 +30,14 @@ function ll {
 }
 ```
 
+Or create a function for [fish shell](https://fishshell.com) in **~/.config/fish/functions/ll.fish**:
+
+```fish
+function ll
+    cd (llama $argv);
+end
+```
+
 Use **ll** to navigate the filesystem. Note: we need a such helper as the child
 process can't modify the working directory of the parent process.
 
