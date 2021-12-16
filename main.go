@@ -237,25 +237,16 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.list()
 					m.contextMenu = false
 				case "settings":
-					var varTemp string
-					environsList := os.Environ()
-					for _, envVar := range environsList {
-						if envVar[0:4] == "HOME" {
-							varTemp = envVar[5:]
-						}
-						filepath.Join(varTemp, ".llamarc")
-						cmd := exec.Command("vim", filepath.Join(varTemp, ".llamarc"))
 
-						cmd.Stdin = os.Stdin
-						cmd.Stdout = os.Stdout
-						// Note: no Stderr as redirect `llama 2> /tmp/path` can be used.
-						m.editMode = true
-						_ = cmd.Run()
-						m.editMode = false
-
-						return m, tea.HideCursor
-
-					}
+					homeDir, _ := os.UserHomeDir()
+					cmd := exec.Command("vim", filepath.Join(homeDir, ".llamarc"))
+					cmd.Stdin = os.Stdin
+					cmd.Stdout = os.Stdout
+					// Note: no Stderr as redirect `llama 2> /tmp/path` can be used.
+					m.editMode = true
+					_ = cmd.Run()
+					m.editMode = false
+					return m, tea.HideCursor
 				}
 			} else {
 
