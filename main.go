@@ -26,23 +26,29 @@ var (
 )
 
 func main() {
+	lipgloss.SetColorProfile(colorProfile())
+
 	path, err := os.Getwd()
 	if err != nil {
 		panic(err)
 	}
+
 	if len(os.Args) == 2 {
 		// Show usage on --help.
 		if os.Args[1] == "--help" {
 			_, _ = fmt.Fprintln(os.Stderr, "\n  "+cursor.Render(" llama ")+`
 
-    Arrows     :  Move cursor    
-    Enter      :  Enter directory
-    Backspace  :  Exit directory 
-    [A-Z]      :  Fuzzy search   
-    Esc        :  Exit with cd   
-    Ctrl+C     :  Exit with noop 
+  Usage: llama [path]
+
+  Key bindings:
+    Arrows     Move cursor
+    Enter      Enter directory
+    Backspace  Exit directory
+    [A-Z]      Fuzzy search
+    Esc        Exit with cd
+    Ctrl+C     Exit with noop
 `)
-			os.Exit(0)
+			os.Exit(1)
 		}
 		// Maybe it is and argument, so get absolute path.
 		path, err = filepath.Abs(os.Args[1])
@@ -60,7 +66,6 @@ func main() {
 	m.list()
 	m.status()
 
-	lipgloss.SetColorProfile(colorProfile())
 	p := tea.NewProgram(m, tea.WithOutput(os.Stderr))
 	if err := p.Start(); err != nil {
 		panic(err)
