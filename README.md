@@ -22,7 +22,16 @@ go get github.com/antonmedv/llama
 
 Or download [prebuild binaries](https://github.com/antonmedv/llama/releases).
 
-Put the next alias into **~/.bashrc**:
+
+Put the next function into **~/.bashrc** or **~/.config/fish/functions/ll.fish**:
+
+<table>
+<tr>
+  <th> Bash </th>
+  <th> Fish </th>
+</tr>
+<tr>
+<td>
 
 ```bash
 function ll {
@@ -30,7 +39,8 @@ function ll {
 }
 ```
 
-Or create a function for [fish shell](https://fishshell.com) in **~/.config/fish/functions/ll.fish**:
+</td>
+<td>
 
 ```fish
 function ll
@@ -38,8 +48,12 @@ function ll
 end
 ```
 
-Use **ll** to navigate the filesystem. Note: we need a such helper as the child
-process can't modify the working directory of the parent process.
+</td>
+</tr>
+</table>
+
+
+Note: we need a such helper as the child process can't modify the working directory of the parent process.
 
 ## Usage
 
