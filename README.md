@@ -1,4 +1,4 @@
-# 🦙 llama®™
+# 🦙 llama
 
 <p align="center">
   <br>
