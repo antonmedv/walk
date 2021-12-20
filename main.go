@@ -74,7 +74,7 @@ func main() {
 	m.list()
 	m.status()
 
-	p := tea.NewProgram(m)
+	p := tea.NewProgram(m, tea.WithOutput(os.Stderr))
 	if err := p.Start(); err != nil {
 		panic(err)
 	}
