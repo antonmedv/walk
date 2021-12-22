@@ -14,36 +14,50 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/jwalton/go-supportscolor"
 	"github.com/muesli/termenv"
 	"github.com/sahilm/fuzzy"
 )
 
 var (
-	modified  = lipgloss.NewStyle().Foreground(lipgloss.Color("#5050F2"))
-	added     = lipgloss.NewStyle().Foreground(lipgloss.Color("#47DE47"))
-	untracked = lipgloss.NewStyle().Foreground(lipgloss.Color("#E84343"))
+	modified  = lipgloss.NewStyle().Foreground(lipgloss.Color("#588FE6"))
+	added     = lipgloss.NewStyle().Foreground(lipgloss.Color("#6ECC8E"))
+	untracked = lipgloss.NewStyle().Foreground(lipgloss.Color("#D95C50"))
 	cursor    = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
 	bar       = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
 )
 
 func main() {
+	term := supportscolor.Stderr()
+	if term.Has16m {
+		lipgloss.SetColorProfile(termenv.TrueColor)
+	} else if term.Has256 {
+		lipgloss.SetColorProfile(termenv.ANSI256)
+	} else {
+		lipgloss.SetColorProfile(termenv.ANSI)
+	}
+
 	path, err := os.Getwd()
 	if err != nil {
 		panic(err)
 	}
+
 	if len(os.Args) == 2 {
 		// Show usage on --help.
 		if os.Args[1] == "--help" {
 			_, _ = fmt.Fprintln(os.Stderr, "\n  "+cursor.Render(" llama ")+`
 
-    Arrows    :  Move cursor
-    Enter     :  Enter directory
-    Backspace :  Exit directory
-    [A-Z]     :  Fuzzy search
-    Esc       :  Exit with cd
-    Ctrl+C    :  Exit with noop
+  Usage: llama [path]
+
+  Key bindings:
+    Arrows     Move cursor
+    Enter      Enter directory
+    Backspace  Exit directory
+    [A-Z]      Fuzzy search
+    Esc        Exit with cd
+    Ctrl+C     Exit with noop
 `)
-			os.Exit(0)
+			os.Exit(1)
 		}
 		// Maybe it is and argument, so get absolute path.
 		path, err = filepath.Abs(os.Args[1])
@@ -61,7 +75,6 @@ func main() {
 	m.list()
 	m.status()
 
-	lipgloss.SetColorProfile(colorProfile())
 	p := tea.NewProgram(m, tea.WithOutput(os.Stderr))
 	if err := p.Start(); err != nil {
 		panic(err)
