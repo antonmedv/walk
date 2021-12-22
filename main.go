@@ -6,6 +6,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/inancgumus/screen"
+  	"github.com/jwalton/go-supportscolor"
+	"github.com/muesli/termenv"
 	"github.com/sahilm/fuzzy"
 	"io/fs"
 	"io/ioutil"
@@ -22,9 +24,10 @@ var (
 	contextOptions = []string{"select","paste","delete","move","settings"}
 	contextCursor = 0
 	fileSource = ""
-	modified  = lipgloss.NewStyle().Foreground(lipgloss.Color("#5050F2"))
-	added     = lipgloss.NewStyle().Foreground(lipgloss.Color("#47DE47"))
-	untracked = lipgloss.NewStyle().Foreground(lipgloss.Color("#E84343"))
+	modified  = lipgloss.NewStyle().Foreground(lipgloss.Color("#588FE6"))
+	added     = lipgloss.NewStyle().Foreground(lipgloss.Color("#6ECC8E"))
+	untracked = lipgloss.NewStyle().Foreground(lipgloss.Color("#D95C50"))
+
 	cursor    = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
 	bar       = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
 )
@@ -71,46 +74,43 @@ func checkExtension(extension string) string {
 }
 
 func main() {
+	term := supportscolor.Stderr()
+	if term.Has16m {
+		lipgloss.SetColorProfile(termenv.TrueColor)
+	} else if term.Has256 {
+		lipgloss.SetColorProfile(termenv.ANSI256)
+	} else {
+		lipgloss.SetColorProfile(termenv.ANSI)
+	}
+
 	path, err := os.Getwd()
 	if err != nil {
-		die(err)
+		panic(err)
 	}
+
 	if len(os.Args) == 2 {
 		// Show usage on --help.
 		if os.Args[1] == "--help" {
-			fmt.Println("\n  " + cursor.Render(" llama ") + `
 
-    Arrows     :  Move cursor    
-    Enter      :  Enter directory
-    Backspace  :  Exit directory 
-    [A-Z]      :  Fuzzy search   
-    Esc        :  Exit with cd   
-    Ctrl+E     :  Enter and exit editor selection 
-	Ctrl+C     :  Exit with noop 
+			_, _ = fmt.Fprintln(os.Stderr, "\n  "+cursor.Render(" llama ")+`
+
+  Usage: llama [path]
+
+  Key bindings:
+    Arrows     Move cursor
+    Enter      Enter directory
+    Backspace  Exit directory
+    [A-Z]      Fuzzy search
+    Esc        Exit with cd
+    Ctrl+C     Exit with noop
 `)
-			os.Exit(0)
+			os.Exit(1)
 		}
 		// Maybe it is and argument, so get absolute path.
 		path, err = filepath.Abs(os.Args[1])
 		if err != nil {
-			die(err)
+			panic(err)
 		}
-	}
-
-	// If stdout of ll piped, use ls behavior: one line, no colors.
-	fi, err := os.Stdout.Stat()
-	if err != nil {
-		die(err)
-	}
-	if (fi.Mode() & os.ModeCharDevice) == 0 {
-		files, err := os.ReadDir(path)
-		if err != nil {
-			die(err)
-		}
-		for _, file := range files {
-			fmt.Println(file.Name())
-		}
-		return
 	}
 
 	m := &model{
@@ -123,12 +123,12 @@ func main() {
 	m.list()
 	m.status()
 
-	screen.Clear()
+  screen.Clear()
 	screen.MoveTopLeft()
+	p := tea.NewProgram(m, tea.WithOutput(os.Stderr))
 
-	p := tea.NewProgram(m)
 	if err := p.Start(); err != nil {
-		die(err)
+		panic(err)
 	}
 	os.Exit(m.exitCode)
 }
@@ -205,13 +205,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch keypress := msg.String(); keypress {
 		case "ctrl+c":
-			fmt.Println()
+			_, _ = fmt.Fprintln(os.Stderr) // Keep last item visible after prompt.
 			m.exitCode = 2
 			return m, tea.Quit
 
 		case "esc":
-			fmt.Println()
-			_, _ = fmt.Fprintln(os.Stderr, m.path)
+			_, _ = fmt.Fprintln(os.Stderr) // Keep last item visible after prompt.
+			fmt.Println(m.path)            // Write to cd.
 			m.exitCode = 0
 			return m, tea.Quit
 
@@ -502,7 +502,7 @@ func (m *model) list() {
 	// ReadDir already returns files and dirs sorted by filename.
 	m.files, err = os.ReadDir(m.path)
 	if err != nil {
-		die(err)
+		panic(err)
 	}
 }
 
@@ -600,7 +600,7 @@ func (m *model) cursorFileName() string {
 func fileInfo(path string) os.FileInfo {
 	fi, err := os.Stat(path)
 	if err != nil {
-		die(err)
+		panic(err)
 	}
 	return fi
 }
@@ -628,7 +628,32 @@ func lookup(names []string, val string) string {
 	return val
 }
 
-func die(msg interface{}) {
-	fmt.Println(msg)
-	os.Exit(1)
+// Copy-pasted from github.com/muesli/termenv@v0.9.0/termenv_unix.go.
+// TODO: Refactor after, [feature](https://ï.at/stderr) implemented.
+func colorProfile() termenv.Profile {
+	term := os.Getenv("TERM")
+	colorTerm := os.Getenv("COLORTERM")
+
+	switch ToLower(colorTerm) {
+	case "24bit":
+		fallthrough
+	case "truecolor":
+		if term == "screen" || !HasPrefix(term, "screen") {
+			// enable TrueColor in tmux, but not for old-school screen
+			return termenv.TrueColor
+		}
+	case "yes":
+		fallthrough
+	case "true":
+		return termenv.ANSI256
+	}
+
+	if Contains(term, "256color") {
+		return termenv.ANSI256
+	}
+	if Contains(term, "color") {
+		return termenv.ANSI
+	}
+
+	return termenv.Ascii
 }

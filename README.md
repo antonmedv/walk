@@ -22,16 +22,38 @@ go get github.com/antonmedv/llama
 
 Or download [prebuild binaries](https://github.com/antonmedv/llama/releases).
 
-Put the next function into **~/.bashrc**:
+
+Put the next function into **~/.bashrc** or **~/.config/fish/functions/ll.fish**:
+
+<table>
+<tr>
+  <th> Bash </th>
+  <th> Fish </th>
+</tr>
+<tr>
+<td>
 
 ```bash
 function ll {
-  llama "$@" 2> /tmp/path && cd "$(cat /tmp/path)"
+  cd "$(llama "$@")"
 }
 ```
 
-Use **ll** to navigate the filesystem. Note: we need a such helper as the child
-process can't modify the working directory of the parent process.
+</td>
+<td>
+
+```fish
+function ll
+    cd (llama $argv);
+end
+```
+
+</td>
+</tr>
+</table>
+
+
+Note: we need a such helper as the child process can't modify the working directory of the parent process.
 
 ## Usage
 
