@@ -78,7 +78,6 @@ type model struct {
 	width, height  int                       // Terminal size.
 	offset         int                       // Scroll position.
 	styles         map[string]lipgloss.Style // Colors of different files based on git status.
-	editMode       bool                      // User opened file for editing.
 	positions      map[string]position       // Map of cursor positions per path.
 	search         string                    // Search file by this name.
 	updatedAt      time.Time                 // Time of last key press.
@@ -98,10 +97,6 @@ func (m *model) Init() tea.Cmd {
 }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if m.editMode {
-		return m, nil
-	}
-
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -167,14 +162,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.list()
 				m.status()
 			} else {
-				// Open file.
-				cmd := exec.Command(lookup([]string{"LLAMA_EDITOR", "EDITOR"}, "less"), filepath.Join(m.path, m.cursorFileName()))
-				cmd.Stdin = os.Stdin
-				cmd.Stdout = os.Stderr // Render to stderr.
-				m.editMode = true
-				_ = cmd.Run()
-				m.editMode = false
-				return m, tea.HideCursor
+				// Open file. This will block until complete.
+				return m, m.openEditor()
 			}
 
 		case "backspace":
@@ -445,6 +434,16 @@ func (m *model) cursorFileName() string {
 		return m.files[i].Name()
 	}
 	return ""
+}
+
+func (m model) openEditor() tea.Cmd {
+	execCmd := exec.Command(lookup([]string{"LLAMA_EDITOR", "EDITOR"}, "less"), filepath.Join(m.path, m.cursorFileName()))
+	return tea.ExecProcess(execCmd, func(err error) tea.Msg {
+		// Note: we could return a message here indicating that editing is
+		// finished and altering our application about any errors. For now,
+		// however, that's not necessary.
+		return nil
+	})
 }
 
 func fileInfo(path string) os.FileInfo {
