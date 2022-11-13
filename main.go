@@ -13,8 +13,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/jwalton/go-supportscolor"
-	"github.com/muesli/termenv"
 	"github.com/sahilm/fuzzy"
 )
 
@@ -27,15 +25,6 @@ var (
 )
 
 func main() {
-	term := supportscolor.Stderr()
-	if term.Has16m {
-		lipgloss.SetColorProfile(termenv.TrueColor)
-	} else if term.Has256 {
-		lipgloss.SetColorProfile(termenv.ANSI256)
-	} else {
-		lipgloss.SetColorProfile(termenv.ANSI)
-	}
-
 	path, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -75,7 +64,7 @@ func main() {
 	m.status()
 
 	p := tea.NewProgram(m, tea.WithOutput(os.Stderr))
-	if err := p.Start(); err != nil {
+	if _, err := p.Run(); err != nil {
 		panic(err)
 	}
 	os.Exit(m.exitCode)
@@ -487,34 +476,4 @@ func lookup(names []string, val string) string {
 		}
 	}
 	return val
-}
-
-// Copy-pasted from github.com/muesli/termenv@v0.9.0/termenv_unix.go.
-// TODO: Refactor after, [feature](https://ï.at/stderr) implemented.
-func colorProfile() termenv.Profile {
-	term := os.Getenv("TERM")
-	colorTerm := os.Getenv("COLORTERM")
-
-	switch ToLower(colorTerm) {
-	case "24bit":
-		fallthrough
-	case "truecolor":
-		if term == "screen" || !HasPrefix(term, "screen") {
-			// enable TrueColor in tmux, but not for old-school screen
-			return termenv.TrueColor
-		}
-	case "yes":
-		fallthrough
-	case "true":
-		return termenv.ANSI256
-	}
-
-	if Contains(term, "256color") {
-		return termenv.ANSI256
-	}
-	if Contains(term, "color") {
-		return termenv.ANSI
-	}
-
-	return termenv.Ascii
 }
