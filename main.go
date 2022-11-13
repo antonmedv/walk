@@ -11,6 +11,7 @@ import (
 	. "strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/sahilm/fuzzy"
@@ -23,6 +24,28 @@ var (
 	cursor    = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
 	bar       = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
 )
+
+type keymap struct {
+	ForceQuit key.Binding
+	Quit      key.Binding
+	Open      key.Binding
+	Back      key.Binding
+	Up        key.Binding
+	Down      key.Binding
+	Left      key.Binding
+	Right     key.Binding
+}
+
+var defaultKeymap = keymap{
+	ForceQuit: key.NewBinding(key.WithKeys("ctrl+c")),
+	Quit:      key.NewBinding(key.WithKeys("esc")),
+	Open:      key.NewBinding(key.WithKeys("enter")),
+	Back:      key.NewBinding(key.WithKeys("backspace")),
+	Up:        key.NewBinding(key.WithKeys("up")),
+	Down:      key.NewBinding(key.WithKeys("down")),
+	Left:      key.NewBinding(key.WithKeys("left")),
+	Right:     key.NewBinding(key.WithKeys("right")),
+}
 
 func main() {
 	path, err := os.Getwd()
@@ -55,6 +78,7 @@ func main() {
 	}
 
 	m := &model{
+		keys:      defaultKeymap,
 		path:      path,
 		width:     80,
 		height:    60,
@@ -71,6 +95,7 @@ func main() {
 }
 
 type model struct {
+	keys           keymap                    // Keybindings
 	path           string                    // Current dir path we are looking at.
 	files          []fs.DirEntry             // Files we are looking at.
 	c, r           int                       // Selector position in columns and rows.
@@ -133,19 +158,19 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-		switch keypress := msg.String(); keypress {
-		case "ctrl+c":
+		switch {
+		case key.Matches(msg, m.keys.ForceQuit):
 			_, _ = fmt.Fprintln(os.Stderr) // Keep last item visible after prompt.
 			m.exitCode = 2
 			return m, tea.Quit
 
-		case "esc":
+		case key.Matches(msg, m.keys.Quit):
 			_, _ = fmt.Fprintln(os.Stderr) // Keep last item visible after prompt.
 			fmt.Println(m.path)            // Write to cd.
 			m.exitCode = 0
 			return m, tea.Quit
 
-		case "enter":
+		case key.Matches(msg, m.keys.Open):
 			newPath := filepath.Join(m.path, m.cursorFileName())
 			if fi := fileInfo(newPath); fi.IsDir() {
 				// Enter subdirectory.
@@ -166,7 +191,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.openEditor()
 			}
 
-		case "backspace":
+		case key.Matches(msg, m.keys.Back):
 			m.prevName = filepath.Base(m.path)
 			m.path = filepath.Join(m.path, "..")
 			if p, ok := m.positions[m.path]; ok {
@@ -181,7 +206,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.list()
 			m.status()
 
-		case "up":
+		case key.Matches(msg, m.keys.Up):
 			m.r--
 			if m.r < 0 {
 				m.r = m.rows - 1
@@ -192,7 +217,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.c = m.columns - 1
 			}
 
-		case "down":
+		case key.Matches(msg, m.keys.Down):
 			m.r++
 			if m.r >= m.rows {
 				m.r = 0
@@ -206,7 +231,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.c = 0
 			}
 
-		case "left":
+		case key.Matches(msg, m.keys.Left):
 			m.c--
 			if m.c < 0 {
 				m.c = m.columns - 1
@@ -216,7 +241,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.c = m.columns - 1
 			}
 
-		case "right":
+		case key.Matches(msg, m.keys.Right):
 			m.c++
 			if m.c >= m.columns {
 				m.c = 0
