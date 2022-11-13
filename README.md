@@ -17,7 +17,7 @@ from the llama. That's it. Simple and dumb as a llama.
 ## Install
 
 ```
-go get github.com/antonmedv/llama
+go install github.com/antonmedv/llama@latest
 ```
 
 Or download [prebuild binaries](https://github.com/antonmedv/llama/releases).
