@@ -297,7 +297,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case key.Matches(msg, m.keys.Right):
-			m.moveLeft()
+			m.moveRight()
 
 		case key.Matches(msg, m.keys.VimRight):
 			if !m.searchMode {
