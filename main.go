@@ -15,6 +15,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 	"github.com/sahilm/fuzzy"
 )
 
@@ -71,6 +72,9 @@ var defaultKeymap = keymap{
 }
 
 func main() {
+	output := termenv.NewOutput(os.Stderr)
+	lipgloss.SetColorProfile(output.ColorProfile())
+
 	path, err := os.Getwd()
 	if err != nil {
 		panic(err)
