@@ -86,8 +86,8 @@ func main() {
 	}
 
 	if len(os.Args) == 2 {
-		// Show usage on --help.
-		if os.Args[1] == "--help" {
+		// Show usage on --help or -h.
+		if os.Args[1] == "--help" || os.Args[1] == "-h" {
 			usage(vimMode)
 		}
 
@@ -146,7 +146,6 @@ func usage(vimMode bool) {
 		fmt.Fprintln(w, "    /\tEnter fuzzy match mode")
 		fmt.Fprintln(w, "    Esc\tExit fuzzy match mode (when active)")
 	}
-	fmt.Fprintln(w, "    [A-Z]\tFuzzy match")
 	fmt.Fprintln(w, "    Esc\tExit with cd")
 	fmt.Fprintln(w, "    Ctrl+C\tExit with noop")
 	w.Flush()
