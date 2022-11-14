@@ -131,30 +131,6 @@ func main() {
 	os.Exit(m.exitCode)
 }
 
-// Show usage and exit.
-func usage(vimMode bool) {
-	_, _ = fmt.Fprintln(os.Stderr, "\n  "+cursor.Render(" llama ")+"\n\n  Usage: llama [path]\n")
-	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
-
-	if vimMode {
-		fmt.Fprintln(w, "    Arrows, hjkl\tMove cursor")
-	} else {
-		fmt.Fprintln(w, "    Arrows\tMove cursor")
-	}
-	fmt.Fprintln(w, "    Enter\tEnter directory")
-	fmt.Fprintln(w, "    Backspace\tExit directory")
-	if vimMode {
-		fmt.Fprintln(w, "    /\tEnter fuzzy match mode")
-		fmt.Fprintln(w, "    Esc\tExit fuzzy match mode (when active)")
-	}
-	fmt.Fprintln(w, "    Esc\tExit with cd")
-	fmt.Fprintln(w, "    Ctrl+C\tExit with noop")
-	w.Flush()
-	fmt.Print("\n")
-
-	os.Exit(1)
-}
-
 type model struct {
 	vimMode        bool                      // Whether or not we're using Vim keybindings.
 	keys           keymap                    // Keybindings.
@@ -631,4 +607,31 @@ func lookup(names []string, val string) string {
 		}
 	}
 	return val
+}
+
+// Show usage and exit.
+func usage(vimMode bool) {
+	_, _ = fmt.Fprintln(os.Stderr, "\n  "+cursor.Render(" llama ")+"\n\n  Usage: llama [path]\n")
+	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
+	put := func(s string) {
+		_, _ = fmt.Fprintln(w, s)
+	}
+
+	if vimMode {
+		put("    Arrows, hjkl\tMove cursor")
+	} else {
+		put("    Arrows\tMove cursor")
+	}
+	put("    Enter\tEnter directory")
+	put("    Backspace\tExit directory")
+	if vimMode {
+		put("    /\tEnter fuzzy match mode")
+		put("    Esc\tExit fuzzy match mode (when active)")
+	}
+	put("    Esc\tExit with cd")
+	put("    Ctrl+C\tExit with noop")
+	_ = w.Flush()
+	fmt.Print("\n")
+
+	os.Exit(1)
 }
