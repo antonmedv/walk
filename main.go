@@ -25,6 +25,7 @@ var (
 	untracked = lipgloss.NewStyle().Foreground(lipgloss.Color("#D95C50"))
 	cursor    = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
 	bar       = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
+	search    = lipgloss.NewStyle().Background(lipgloss.Color("#499F1C")).Foreground(lipgloss.Color("#FFFFFF"))
 )
 
 type keymap struct {
@@ -167,7 +168,6 @@ type model struct {
 	positions      map[string]position       // Map of cursor positions per path.
 	search         string                    // Type to select files with this value.
 	searchMode     bool                      // Whether type-to-select is active. Always active in non-vim-mode.
-	updatedAt      time.Time                 // Time of last key press.
 	matchedIndexes []int                     // List of char found indexes.
 	prevName       string                    // Base name of previous directory before "up".
 	findPrevName   bool                      // On View(), set c&r to point to prevName.
@@ -178,6 +178,8 @@ type position struct {
 	c, r   int
 	offset int
 }
+
+type clearSearchMsg int
 
 func (m *model) Init() tea.Cmd {
 	return nil
@@ -201,13 +203,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		if !m.vimMode || m.searchMode {
 			if msg.Type == tea.KeyRunes {
-				// Input a regular character, do the search.
-				if time.Now().Sub(m.updatedAt).Seconds() >= 1 {
-					m.search = string(msg.Runes)
-				} else {
-					m.search += string(msg.Runes)
-				}
-				m.updatedAt = time.Now()
+				m.search += string(msg.Runes)
 				names := make([]string, len(m.files))
 				for i, fi := range m.files {
 					names[i] = fi.Name()
@@ -219,6 +215,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.c = index / m.rows
 					m.r = index % m.rows
 				}
+				return m, tea.Tick(time.Second, func(time.Time) tea.Msg {
+					return clearSearchMsg(0)
+				})
 			}
 		}
 
@@ -311,6 +310,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.disableSearchMode()
 		}
 
+	case clearSearchMsg:
+		m.search = ""
+		m.disableSearchMode()
 	}
 	m.updateOffset()
 	m.saveCursorPosition()
@@ -469,22 +471,23 @@ start:
 	if len(output) >= m.offset+m.height {
 		output = output[m.offset : m.offset+m.height]
 	}
-	// Location bar.
+
+	// Location bar (grey).
 	location := m.path
 	if userHomeDir, err := os.UserHomeDir(); err == nil {
 		location = Replace(m.path, userHomeDir, "~", 1)
 	}
-	if len(location) > m.width {
-		location = location[len(location)-m.width:]
-	}
-	locationBar := bar.Render(location)
-
-	filterIndicator := ""
+	// Filter bar (green).
+	filter := ""
 	if m.searchMode {
-		filterIndicator = " [Search]"
+		filter = "/" + m.search
 	}
-
-	return locationBar + filterIndicator + "\n" + Join(output, "\n")
+	barLen := len(location) + len(filter)
+	if barLen > m.width {
+		location = location[barLen-m.width:]
+	}
+	bar := bar.Render(location) + search.Render(filter)
+	return bar + "\n" + Join(output, "\n")
 }
 
 func (m *model) list() {
