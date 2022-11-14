@@ -27,14 +27,24 @@ var (
 )
 
 type keymap struct {
-	ForceQuit  key.Binding
-	Quit       key.Binding
-	Open       key.Binding
-	Back       key.Binding
-	Up         key.Binding
-	Down       key.Binding
-	Left       key.Binding
-	Right      key.Binding
+	ForceQuit key.Binding
+	Quit      key.Binding
+	Open      key.Binding
+
+	// Arrow-based movement.
+	Back  key.Binding
+	Up    key.Binding
+	Down  key.Binding
+	Left  key.Binding
+	Right key.Binding
+
+	// Vim-based movement.
+	VimUp    key.Binding
+	VimDown  key.Binding
+	VimLeft  key.Binding
+	VimRight key.Binding
+
+	// Search mode, applicable only when Vim mode is active.
 	Search     key.Binding
 	ExitSearch key.Binding
 }
@@ -48,17 +58,14 @@ var defaultKeymap = keymap{
 	Down:      key.NewBinding(key.WithKeys("down")),
 	Left:      key.NewBinding(key.WithKeys("left")),
 	Right:     key.NewBinding(key.WithKeys("right")),
-}
 
-var vimKeymap = keymap{
-	ForceQuit:  key.NewBinding(key.WithKeys("ctrl+c")),
-	Quit:       key.NewBinding(key.WithKeys("esc")),
-	Open:       key.NewBinding(key.WithKeys("enter")),
-	Back:       key.NewBinding(key.WithKeys("backspace")),
-	Up:         key.NewBinding(key.WithKeys("k")),
-	Down:       key.NewBinding(key.WithKeys("j")),
-	Left:       key.NewBinding(key.WithKeys("h")),
-	Right:      key.NewBinding(key.WithKeys("l")),
+	// Vim mode only.
+	VimUp:    key.NewBinding(key.WithKeys("k")),
+	VimDown:  key.NewBinding(key.WithKeys("j")),
+	VimLeft:  key.NewBinding(key.WithKeys("h")),
+	VimRight: key.NewBinding(key.WithKeys("l")),
+
+	// Vim mode only.
 	Search:     key.NewBinding(key.WithKeys("/")),
 	ExitSearch: key.NewBinding(key.WithKeys("esc")),
 }
@@ -69,7 +76,10 @@ func main() {
 		panic(err)
 	}
 
-	vimMode := lookup([]string{"LLAMA_VIM_KEYBINDINGS"}, "false") == "true"
+	vimMode := true
+	if lookup([]string{"LLAMA_VIM_KEYBINDINGS"}, "") == "false" {
+		vimMode = false
+	}
 
 	if len(os.Args) == 2 {
 		// Show usage on --help.
@@ -85,8 +95,12 @@ func main() {
 	}
 
 	keys := defaultKeymap
-	if vimMode {
-		keys = vimKeymap
+	if !vimMode {
+		keys.VimUp.SetEnabled(false)
+		keys.VimDown.SetEnabled(false)
+		keys.VimLeft.SetEnabled(false)
+		keys.VimRight.SetEnabled(false)
+		keys.Search.SetEnabled(false)
 	}
 
 	m := &model{
@@ -99,7 +113,11 @@ func main() {
 	}
 	m.list()
 	m.status()
-	m.disableSearchMode() // only applies when Vim mode is active.
+
+	if vimMode {
+		// Initialize search mode keybindings.
+		m.disableSearchMode()
+	}
 
 	p := tea.NewProgram(m, tea.WithOutput(os.Stderr))
 	if _, err := p.Run(); err != nil {
@@ -114,7 +132,7 @@ func usage(vimMode bool) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
 
 	if vimMode {
-		fmt.Fprintln(w, "    hjkl\tMove cursor")
+		fmt.Fprintln(w, "    Arrows, hjkl\tMove cursor")
 	} else {
 		fmt.Fprintln(w, "    Arrows\tMove cursor")
 	}
@@ -252,56 +270,35 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.status()
 
 		case key.Matches(msg, m.keys.Up):
+			m.moveUp()
+
+		case key.Matches(msg, m.keys.VimUp):
 			if !m.searchMode {
-				m.r--
-				if m.r < 0 {
-					m.r = m.rows - 1
-					m.c--
-				}
-				if m.c < 0 {
-					m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
-					m.c = m.columns - 1
-				}
+				m.moveUp()
 			}
 
 		case key.Matches(msg, m.keys.Down):
+			m.moveDown()
+
+		case key.Matches(msg, m.keys.VimDown):
 			if !m.searchMode {
-				m.r++
-				if m.r >= m.rows {
-					m.r = 0
-					m.c++
-				}
-				if m.c >= m.columns {
-					m.c = 0
-				}
-				if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
-					m.r = 0
-					m.c = 0
-				}
+				m.moveDown()
 			}
 
 		case key.Matches(msg, m.keys.Left):
+			m.moveLeft()
+
+		case key.Matches(msg, m.keys.VimLeft):
 			if !m.searchMode {
-				m.c--
-				if m.c < 0 {
-					m.c = m.columns - 1
-				}
-				if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
-					m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
-					m.c = m.columns - 1
-				}
+				m.moveLeft()
 			}
 
 		case key.Matches(msg, m.keys.Right):
+			m.moveLeft()
+
+		case key.Matches(msg, m.keys.VimRight):
 			if !m.searchMode {
-				m.c++
-				if m.c >= m.columns {
-					m.c = 0
-				}
-				if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
-					m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
-					m.c = m.columns - 1
-				}
+				m.moveRight()
 			}
 
 		case key.Matches(msg, m.keys.Search):
@@ -315,6 +312,55 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.updateOffset()
 	m.saveCursorPosition()
 	return m, nil
+}
+
+func (m *model) moveUp() {
+	m.r--
+	if m.r < 0 {
+		m.r = m.rows - 1
+		m.c--
+	}
+	if m.c < 0 {
+		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
+		m.c = m.columns - 1
+	}
+}
+
+func (m *model) moveDown() {
+	m.r++
+	if m.r >= m.rows {
+		m.r = 0
+		m.c++
+	}
+	if m.c >= m.columns {
+		m.c = 0
+	}
+	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
+		m.r = 0
+		m.c = 0
+	}
+}
+
+func (m *model) moveLeft() {
+	m.c--
+	if m.c < 0 {
+		m.c = m.columns - 1
+	}
+	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
+		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
+		m.c = m.columns - 1
+	}
+}
+
+func (m *model) moveRight() {
+	m.c++
+	if m.c >= m.columns {
+		m.c = 0
+	}
+	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
+		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
+		m.c = m.columns - 1
+	}
 }
 
 func (m *model) enableSearchMode() {
