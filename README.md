@@ -8,11 +8,11 @@
 
 Llama — a terminal file manager.
 
-Why another file manager? I wanted something simple and minimalistic,
-something to help me with faster navigation in the filesystem. A cd &
-ls replacement. So I build "llama". It allows to quickly navigate
-with fuzzy searching; cd integration is quite simple. Open vim right
-from the llama. That's it. Simple and dumb as a llama.
+Why another file manager? I wanted something simple and minimalistic.
+Something to help me with faster navigation in the filesystem; a `cd` and `ls`
+replacement. So I build "llama". It allows for quick navigation with fuzzy
+searching. `cd` integration is quite simple. And you can open `vim` right from
+the llama. That's it. As simple and dumb as a llama.
 
 ## Install
 
