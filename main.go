@@ -129,7 +129,7 @@ func usage(vimMode bool) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
 
 	if vimMode {
-		fmt.Fprintln(w, "    hjkl\tMove cursor")
+		fmt.Fprintln(w, "    Arrows, hjkl\tMove cursor")
 	} else {
 		fmt.Fprintln(w, "    Arrows\tMove cursor")
 	}
