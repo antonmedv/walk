@@ -76,7 +76,10 @@ func main() {
 		panic(err)
 	}
 
-	vimMode := lookup([]string{"LLAMA_VIM_KEYBINDINGS"}, "false") == "true"
+	vimMode := true
+	if lookup([]string{"LLAMA_VIM_KEYBINDINGS"}, "") == "false" {
+		vimMode = false
+	}
 
 	if len(os.Args) == 2 {
 		// Show usage on --help.

@@ -57,14 +57,16 @@ Note: we need a such helper as the child process can't modify the working direct
 
 ## Usage
 
-| Key binding | Description     |
-|-------------|-----------------|
-| `Arrows`    | Move cursor     |
-| `Enter`     | Enter directory |
-| `Backspace` | Exit directory  |
-| `[A-Z]`     | Fuzzy search    |
-| `Esc`       | Exit with cd    |
-| `Ctrl+C`    | Exit with noop  |
+| Key binding | Description                  |
+|------------------|-------------------------|
+| `Arrows`, `hjkl` | Move cursor             |
+| `Enter`          | Enter directory         |
+| `Backspace`      | Exit directory          |
+| `[A-Z]`          | Fuzzy search            |
+| `Esc`            | Exit with cd            |
+| `Ctrl+C`         | Exit with noop          |
+| `/`              | Enter fuzzy search mode |
+| `Esc`            | Exit fuzzy search mode  |
 
 The `EDITOR` or `LLAMA_EDITOR` environment variable used for openning files from the llama.
 
@@ -73,21 +75,16 @@ export EDITOR=vim
 ```
 
 
-## Vim Mode
+## Non-Vim Mode
 
-Set `LLAMA_VIM_KEYBINDINGS=true` in the environment variable to enable vim
-keybindings. In Vim mode you'll need to press <kbd>/</kbd> to activate fuzzy
-search mode.
+Set `LLAMA_VIM_KEYBINDINGS=false` in the environment to disable Vim
+keybindings. In non-Vim mode there's no need  to press <kbd>/</kbd> to activate
+fuzzy search mode: you can instead just type to match files and directories
+anytime.
 
  ```bash
- export LLAMA_VIM_KEYBINDINGS=true
+ export LLAMA_VIM_KEYBINDINGS=false
  ```
-
- | Key binding | Description             |
- |-------------|-------------------------|
- | `hjkl`      | Move cursor             |
- | `/`         | Enter fuzzy search mode |
- | `Esc`       | Exit fuzzy search mode  |
 
 
 ## License
