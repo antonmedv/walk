@@ -26,6 +26,7 @@ var (
 	cursor    = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
 	bar       = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
 	search    = lipgloss.NewStyle().Background(lipgloss.Color("#499F1C")).Foreground(lipgloss.Color("#FFFFFF"))
+	noFiles   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder())
 )
 
 type keymap struct {
@@ -358,9 +359,6 @@ func (m *model) moveBottom() {
 }
 
 func (m *model) View() string {
-	if len(m.files) == 0 {
-		return "No files"
-	}
 
 	// If it's possible to fit all files in one column on a third of the screen,
 	// just use one column. Otherwise, let's squeeze listing in half of screen.
@@ -462,7 +460,12 @@ start:
 		location = location[barLen-m.width:]
 	}
 	bar := bar.Render(location) + search.Render(filter)
-	return bar + "\n" + Join(output, "\n")
+
+	empty := ""
+	if len(m.files) == 0 {
+		empty = noFiles.Render(" No files ")
+	}
+	return bar + "\n" + Join(output, "\n") + empty
 }
 
 func (m *model) list() {
