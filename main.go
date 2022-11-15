@@ -34,17 +34,21 @@ type keymap struct {
 	Open      key.Binding
 
 	// Arrow-based movement.
-	Back  key.Binding
-	Up    key.Binding
-	Down  key.Binding
-	Left  key.Binding
-	Right key.Binding
+	Back   key.Binding
+	Up     key.Binding
+	Down   key.Binding
+	Left   key.Binding
+	Right  key.Binding
+	Top    key.Binding
+	Bottom key.Binding
 
 	// Vim-based movement.
-	VimUp    key.Binding
-	VimDown  key.Binding
-	VimLeft  key.Binding
-	VimRight key.Binding
+	VimUp     key.Binding
+	VimDown   key.Binding
+	VimLeft   key.Binding
+	VimRight  key.Binding
+	VimTop    key.Binding
+	VimBottom key.Binding
 
 	// Search mode.
 	Search key.Binding
@@ -59,10 +63,14 @@ var defaultKeymap = keymap{
 	Down:      key.NewBinding(key.WithKeys("down")),
 	Left:      key.NewBinding(key.WithKeys("left")),
 	Right:     key.NewBinding(key.WithKeys("right")),
+	Top:       key.NewBinding(key.WithKeys("shift+up")),
+	Bottom:    key.NewBinding(key.WithKeys("shift+down")),
 	VimUp:     key.NewBinding(key.WithKeys("k")),
 	VimDown:   key.NewBinding(key.WithKeys("j")),
 	VimLeft:   key.NewBinding(key.WithKeys("h")),
 	VimRight:  key.NewBinding(key.WithKeys("l")),
+	VimTop:    key.NewBinding(key.WithKeys("g")),
+	VimBottom: key.NewBinding(key.WithKeys("G")),
 	Search:    key.NewBinding(key.WithKeys("/")),
 }
 
@@ -237,6 +245,12 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Up):
 			m.moveUp()
 
+		case key.Matches(msg, m.keys.Top, m.keys.VimTop):
+			m.moveTop()
+
+		case key.Matches(msg, m.keys.Bottom, m.keys.VimBottom):
+			m.moveBottom()
+
 		case key.Matches(msg, m.keys.VimUp):
 			if !m.searchMode {
 				m.moveUp()
@@ -329,6 +343,17 @@ func (m *model) moveRight() {
 	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
 		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
 		m.c = m.columns - 1
+	}
+}
+
+func (m *model) moveTop() {
+	m.r = 0
+}
+
+func (m *model) moveBottom() {
+	m.r = m.rows - 1
+	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
+		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
 	}
 }
 
