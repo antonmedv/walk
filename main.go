@@ -46,9 +46,8 @@ type keymap struct {
 	VimLeft  key.Binding
 	VimRight key.Binding
 
-	// Search mode, applicable only when Vim mode is active.
-	Search     key.Binding
-	ExitSearch key.Binding
+	// Search mode.
+	Search key.Binding
 }
 
 var defaultKeymap = keymap{
@@ -60,36 +59,22 @@ var defaultKeymap = keymap{
 	Down:      key.NewBinding(key.WithKeys("down")),
 	Left:      key.NewBinding(key.WithKeys("left")),
 	Right:     key.NewBinding(key.WithKeys("right")),
-
-	// Vim mode only.
-	VimUp:    key.NewBinding(key.WithKeys("k")),
-	VimDown:  key.NewBinding(key.WithKeys("j")),
-	VimLeft:  key.NewBinding(key.WithKeys("h")),
-	VimRight: key.NewBinding(key.WithKeys("l")),
-
-	// Vim mode only.
-	Search:     key.NewBinding(key.WithKeys("/")),
-	ExitSearch: key.NewBinding(key.WithKeys("esc")),
+	VimUp:     key.NewBinding(key.WithKeys("k")),
+	VimDown:   key.NewBinding(key.WithKeys("j")),
+	VimLeft:   key.NewBinding(key.WithKeys("h")),
+	VimRight:  key.NewBinding(key.WithKeys("l")),
+	Search:    key.NewBinding(key.WithKeys("/")),
 }
 
 func main() {
-	output := termenv.NewOutput(os.Stderr)
-	lipgloss.SetColorProfile(output.ColorProfile())
-
 	path, err := os.Getwd()
 	if err != nil {
 		panic(err)
 	}
 
-	vimMode := true
-	if lookup([]string{"LLAMA_VIM_KEYBINDINGS"}, "") == "false" {
-		vimMode = false
-	}
-
 	if len(os.Args) == 2 {
-		// Show usage on --help or -h.
 		if os.Args[1] == "--help" || os.Args[1] == "-h" {
-			usage(vimMode)
+			usage()
 		}
 
 		// Maybe it is and argument, so get absolute path.
@@ -99,17 +84,11 @@ func main() {
 		}
 	}
 
-	keys := defaultKeymap
-	if !vimMode {
-		keys.VimUp.SetEnabled(false)
-		keys.VimDown.SetEnabled(false)
-		keys.VimLeft.SetEnabled(false)
-		keys.VimRight.SetEnabled(false)
-		keys.Search.SetEnabled(false)
-	}
+	output := termenv.NewOutput(os.Stderr)
+	lipgloss.SetColorProfile(output.ColorProfile())
 
+	keys := defaultKeymap
 	m := &model{
-		vimMode:   vimMode,
 		keys:      keys,
 		path:      path,
 		width:     80,
@@ -119,11 +98,6 @@ func main() {
 	m.list()
 	m.status()
 
-	if vimMode {
-		// Initialize search mode keybindings.
-		m.disableSearchMode()
-	}
-
 	p := tea.NewProgram(m, tea.WithOutput(os.Stderr))
 	if _, err := p.Run(); err != nil {
 		panic(err)
@@ -132,7 +106,6 @@ func main() {
 }
 
 type model struct {
-	vimMode        bool                      // Whether or not we're using Vim keybindings.
 	keys           keymap                    // Keybindings.
 	path           string                    // Current dir path we are looking at.
 	files          []fs.DirEntry             // Files we are looking at.
@@ -143,7 +116,8 @@ type model struct {
 	styles         map[string]lipgloss.Style // Colors of different files based on git status.
 	positions      map[string]position       // Map of cursor positions per path.
 	search         string                    // Type to select files with this value.
-	searchMode     bool                      // Whether type-to-select is active. Always active in non-vim-mode.
+	searchMode     bool                      // Whether type-to-select is active.
+	searchId       int                       // Search id to indicate what search we are currently on.
 	matchedIndexes []int                     // List of char found indexes.
 	prevName       string                    // Base name of previous directory before "up".
 	findPrevName   bool                      // On View(), set c&r to point to prevName.
@@ -177,8 +151,16 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		if !m.vimMode || m.searchMode {
-			if msg.Type == tea.KeyRunes {
+		if m.searchMode {
+			if key.Matches(msg, m.keys.Search) {
+				m.searchMode = false
+				return m, nil
+			} else if key.Matches(msg, m.keys.Back) {
+				if len(m.search) > 0 {
+					m.search = m.search[:len(m.search)-1]
+					return m, nil
+				}
+			} else if msg.Type == tea.KeyRunes {
 				m.search += string(msg.Runes)
 				names := make([]string, len(m.files))
 				for i, fi := range m.files {
@@ -191,8 +173,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.c = index / m.rows
 					m.r = index % m.rows
 				}
-				return m, tea.Tick(time.Second, func(time.Time) tea.Msg {
-					return clearSearchMsg(0)
+				m.updateOffset()
+				m.saveCursorPosition()
+				// Save search id to clear only current search after delay.
+				// User may have already started typing next search.
+				searchId := m.searchId
+				return m, tea.Tick(2*time.Second, func(time.Time) tea.Msg {
+					return clearSearchMsg(searchId)
 				})
 			}
 		}
@@ -210,7 +197,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case key.Matches(msg, m.keys.Open):
-			m.disableSearchMode()
+			m.searchMode = false
 			newPath := filepath.Join(m.path, m.cursorFileName())
 			if fi := fileInfo(newPath); fi.IsDir() {
 				// Enter subdirectory.
@@ -232,7 +219,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case key.Matches(msg, m.keys.Back):
-			m.disableSearchMode()
+			m.searchMode = false
 			m.prevName = filepath.Base(m.path)
 			m.path = filepath.Join(m.path, "..")
 			if p, ok := m.positions[m.path]; ok {
@@ -280,16 +267,17 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case key.Matches(msg, m.keys.Search):
-			m.enableSearchMode()
-
-		case key.Matches(msg, m.keys.ExitSearch):
-			m.disableSearchMode()
+			m.searchMode = true
+			m.searchId++
+			m.search = ""
 		}
 
 	case clearSearchMsg:
-		m.search = ""
-		m.disableSearchMode()
+		if m.searchId == int(msg) {
+			m.searchMode = false
+		}
 	}
+
 	m.updateOffset()
 	m.saveCursorPosition()
 	return m, nil
@@ -342,20 +330,6 @@ func (m *model) moveRight() {
 		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
 		m.c = m.columns - 1
 	}
-}
-
-func (m *model) enableSearchMode() {
-	m.searchMode = true
-	m.keys.Search.SetEnabled(false)
-	m.keys.ExitSearch.SetEnabled(true)
-	m.keys.Quit.SetEnabled(false)
-}
-
-func (m *model) disableSearchMode() {
-	m.searchMode = false
-	m.keys.Search.SetEnabled(true)
-	m.keys.ExitSearch.SetEnabled(false)
-	m.keys.Quit.SetEnabled(true)
 }
 
 func (m *model) View() string {
@@ -568,7 +542,7 @@ func (m *model) cursorFileName() string {
 	return ""
 }
 
-func (m model) openEditor() tea.Cmd {
+func (m *model) openEditor() tea.Cmd {
 	execCmd := exec.Command(lookup([]string{"LLAMA_EDITOR", "EDITOR"}, "less"), filepath.Join(m.path, m.cursorFileName()))
 	return tea.ExecProcess(execCmd, func(err error) tea.Msg {
 		// Note: we could return a message here indicating that editing is
@@ -609,29 +583,19 @@ func lookup(names []string, val string) string {
 	return val
 }
 
-// Show usage and exit.
-func usage(vimMode bool) {
+func usage() {
 	_, _ = fmt.Fprintln(os.Stderr, "\n  "+cursor.Render(" llama ")+"\n\n  Usage: llama [path]\n")
 	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
 	put := func(s string) {
 		_, _ = fmt.Fprintln(w, s)
 	}
-
-	if vimMode {
-		put("    Arrows, hjkl\tMove cursor")
-	} else {
-		put("    Arrows\tMove cursor")
-	}
+	put("    Arrows, hjkl\tMove cursor")
 	put("    Enter\tEnter directory")
 	put("    Backspace\tExit directory")
-	if vimMode {
-		put("    /\tEnter fuzzy match mode")
-		put("    Esc\tExit fuzzy match mode (when active)")
-	}
+	put("    /\tFuzzy search")
 	put("    Esc\tExit with cd")
-	put("    Ctrl+C\tExit with noop")
+	put("    Ctrl+C\tExit without cd")
 	_ = w.Flush()
 	fmt.Print("\n")
-
 	os.Exit(1)
 }
