@@ -57,16 +57,15 @@ Note: we need a such helper as the child process can't modify the working direct
 
 ## Usage
 
-| Key binding      | Description             |
-|------------------|-------------------------|
-| `Arrows`, `hjkl` | Move cursor             |
-| `Enter`          | Enter directory         |
-| `Backspace`      | Exit directory          |
-| `[A-Z]`          | Fuzzy search            |
-| `Esc`            | Exit with cd            |
-| `Ctrl+C`         | Exit without cd         |
-| `/`              | Enter fuzzy search mode |
-| `Esc`            | Exit fuzzy search mode  |
+| Key binding      | Description       |
+|------------------|-------------------|
+| `Arrows`, `hjkl` | Move cursor       |
+| `Enter`          | Enter directory   |
+| `Backspace`      | Exit directory    |
+| `[A-Z]`          | Fuzzy search      |
+| `Esc`            | Exit with cd      |
+| `Ctrl+C`         | Exit without cd   |
+| `/`              | Fuzzy search      |
 
 The `EDITOR` or `LLAMA_EDITOR` environment variable used for openning files from the llama.
 
