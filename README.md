@@ -29,6 +29,7 @@ Put the next function into **~/.bashrc** or **~/.config/fish/functions/ll.fish**
 <tr>
   <th> Bash </th>
   <th> Fish </th>
+  <th> PowerShell </th>
 </tr>
 <tr>
 <td>
@@ -44,8 +45,17 @@ function ll {
 
 ```fish
 function ll
-    cd (llama $argv);
+  cd (llama $argv);
 end
+```
+
+</td>
+<td>
+
+```powershell
+function ll() {
+  cd "$(llama $args)"
+}
 ```
 
 </td>
