@@ -23,7 +23,7 @@ go install github.com/antonmedv/llama@latest
 Or download [prebuild binaries](https://github.com/antonmedv/llama/releases).
 
 
-Put the next function into **~/.bashrc** or **~/.config/fish/functions/ll.fish**:
+Put the next function into the **.bashrc** or a similar config:
 
 <table>
 <tr>
