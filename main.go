@@ -612,7 +612,7 @@ func lookup(names []string, val string) string {
 }
 
 func usage() {
-	_, _ = fmt.Fprintln(os.Stderr, "\n  "+cursor.Render(" llama ")+"\n\n  Usage: llama [path]\n")
+	fmt.Println("\n  " + cursor.Render(" llama ") + "\n\n  Usage: llama [path]\n")
 	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
 	put := func(s string) {
 		_, _ = fmt.Fprintln(w, s)
@@ -625,5 +625,5 @@ func usage() {
 	put("    Ctrl+C\tExit without cd")
 	_ = w.Flush()
 	fmt.Print("\n")
-	os.Exit(1)
+	os.Exit(0)
 }
