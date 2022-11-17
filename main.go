@@ -3,30 +3,36 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/fs"
 	"math"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	. "strings"
 	"text/tabwriter"
 	"time"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 	"github.com/sahilm/fuzzy"
 )
 
 var (
-	modified  = lipgloss.NewStyle().Foreground(lipgloss.Color("#588FE6"))
-	added     = lipgloss.NewStyle().Foreground(lipgloss.Color("#6ECC8E"))
-	untracked = lipgloss.NewStyle().Foreground(lipgloss.Color("#D95C50"))
-	cursor    = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
-	bar       = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
-	search    = lipgloss.NewStyle().Background(lipgloss.Color("#499F1C")).Foreground(lipgloss.Color("#FFFFFF"))
-	noFiles   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder())
+	mainStyle    = lipgloss.NewStyle()
+	previewStyle = lipgloss.NewStyle().Padding(0, 0, 0, 2)
+	warningStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder())
+	modified     = lipgloss.NewStyle().Foreground(lipgloss.Color("#588FE6"))
+	added        = lipgloss.NewStyle().Foreground(lipgloss.Color("#6ECC8E"))
+	untracked    = lipgloss.NewStyle().Foreground(lipgloss.Color("#D95C50"))
+	cursor       = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
+	bar          = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
+	search       = lipgloss.NewStyle().Background(lipgloss.Color("#499F1C")).Foreground(lipgloss.Color("#FFFFFF"))
 )
 
 var (
@@ -49,6 +55,7 @@ var (
 	keyVimTop    = key.NewBinding(key.WithKeys("g"))
 	keyVimBottom = key.NewBinding(key.WithKeys("G"))
 	keySearch    = key.NewBinding(key.WithKeys("/"))
+	keyPreview   = key.NewBinding(key.WithKeys(" "))
 )
 
 func main() {
@@ -104,6 +111,8 @@ type model struct {
 	prevName       string                    // Base name of previous directory before "up".
 	findPrevName   bool                      // On View(), set c&r to point to prevName.
 	exitCode       int                       // Exit code.
+	previewMode    bool                      // Whether preview is active.
+	previewContent string                    // Content of preview.
 }
 
 type position struct {
@@ -111,7 +120,10 @@ type position struct {
 	offset int
 }
 
-type clearSearchMsg int
+type (
+	clearSearchMsg int
+	previewMsg     string
+)
 
 func (m *model) Init() tea.Cmd {
 	return nil
@@ -125,12 +137,16 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Reset position history as c&r changes.
 		m.positions = make(map[string]position)
 		// Keep cursor at same place.
-		m.prevName = m.cursorFileName()
+		m.prevName = m.fileName()
 		m.findPrevName = true
 		// Also, m.c&r no longer point to correct indexes.
 		m.c = 0
 		m.r = 0
-		return m, nil
+		if m.previewMode {
+			return m, m.previewCmd
+		} else {
+			return m, nil
+		}
 
 	case tea.KeyMsg:
 		if m.searchMode {
@@ -180,7 +196,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, keyOpen):
 			m.searchMode = false
-			newPath := filepath.Join(m.path, m.cursorFileName())
+			newPath := filepath.Join(m.path, m.fileName())
 			if fi := fileInfo(newPath); fi.IsDir() {
 				// Enter subdirectory.
 				m.path = newPath
@@ -213,7 +229,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.list()
 			m.status()
-			return m, nil
+			if m.previewMode {
+				return m, m.previewCmd
+			} else {
+				return m, nil
+			}
 
 		case key.Matches(msg, keyUp):
 			m.moveUp()
@@ -263,16 +283,58 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.searchMode = true
 			m.searchId++
 			m.search = ""
+
+		case key.Matches(msg, keyPreview):
+			m.previewMode = !m.previewMode
+			// Reset position history as c&r changes.
+			m.positions = make(map[string]position)
+			// Keep cursor at same place.
+			m.prevName = m.fileName()
+			m.findPrevName = true
+			if m.previewMode {
+				return m, tea.Sequence(tea.EnterAltScreen, m.previewCmd)
+			} else {
+				m.previewContent = ""
+				return m, tea.ExitAltScreen
+			}
+		}
+		m.updateOffset()
+		m.saveCursorPosition()
+		if m.previewMode {
+			return m, m.previewCmd
+		} else {
+			return m, nil
 		}
 
 	case clearSearchMsg:
 		if m.searchId == int(msg) {
 			m.searchMode = false
 		}
+
+	case previewMsg:
+		filePath := string(msg)
+		file, err := os.Open(filePath)
+		defer file.Close()
+		if err != nil {
+			m.previewContent = err.Error()
+			return m, nil
+		}
+		content, _ := io.ReadAll(file)
+		ext := path.Ext(filePath)
+		switch {
+		case ext == ".md":
+			r, _ := glamour.NewTermRenderer(
+				glamour.WithAutoStyle(),
+				glamour.WithWordWrap(m.width/2),
+			)
+			m.previewContent, _ = r.Render(string(content))
+		case utf8.Valid(content):
+			m.previewContent = Replace(string(content), "\t", "    ", -1)
+		default:
+			m.previewContent = "No preview available."
+		}
 	}
 
-	m.updateOffset()
-	m.saveCursorPosition()
 	return m, nil
 }
 
@@ -349,6 +411,10 @@ func (m *model) moveRightmost() {
 }
 
 func (m *model) View() string {
+	width := m.width
+	if m.previewMode {
+		width = m.width / 2
+	}
 
 	// If it's possible to fit all files in one column on a third of the screen,
 	// just use one column. Otherwise, let's squeeze listing in half of screen.
@@ -398,7 +464,7 @@ start:
 		for i := 0; i < m.columns; i++ {
 			row[i] = names[i][j]
 		}
-		if len(Join(row, separator)) > m.width && m.columns > 1 {
+		if len(Join(row, separator)) > width && m.columns > 1 {
 			// Yep. No luck, let's decrease number of columns and try one more time.
 			m.columns--
 			goto start
@@ -446,16 +512,28 @@ start:
 		filter = "/" + m.search
 	}
 	barLen := len(location) + len(filter)
-	if barLen > m.width {
-		location = location[barLen-m.width:]
+	if barLen > width {
+		// TODO: this panics as soon as we have a filter and the path is too long.
+		// runtime error: slice bounds out of range [12:11]
+		location = location[barLen-width:]
 	}
 	bar := bar.Render(location) + search.Render(filter)
 
 	empty := ""
 	if len(m.files) == 0 {
-		empty = noFiles.Render(" No files ")
+		empty = warningStyle.Render(" No files ")
 	}
-	return bar + "\n" + Join(output, "\n") + empty
+
+	main := bar + "\n" + Join(output, "\n") + empty + "\n"
+
+	if m.previewMode {
+		preview := previewStyle.
+			MaxHeight(m.height).
+			Render(m.previewContent)
+		return lipgloss.JoinHorizontal(lipgloss.Top, main, preview)
+	} else {
+		return main
+	}
 }
 
 func (m *model) list() {
@@ -552,22 +630,30 @@ func (m *model) saveCursorPosition() {
 	}
 }
 
-func (m *model) cursorFileName() string {
+func (m *model) fileName() string {
 	i := m.c*m.rows + m.r
-	if i < len(m.files) {
-		return m.files[i].Name()
+	if i >= len(m.files) {
+		panic("file index out of range")
 	}
-	return ""
+	return m.files[i].Name()
+}
+
+func (m *model) filePath() string {
+	return path.Join(m.path, m.fileName())
 }
 
 func (m *model) openEditor() tea.Cmd {
-	execCmd := exec.Command(lookup([]string{"LLAMA_EDITOR", "EDITOR"}, "less"), filepath.Join(m.path, m.cursorFileName()))
+	execCmd := exec.Command(lookup([]string{"LLAMA_EDITOR", "EDITOR"}, "less"), m.filePath())
 	return tea.ExecProcess(execCmd, func(err error) tea.Msg {
 		// Note: we could return a message here indicating that editing is
 		// finished and altering our application about any errors. For now,
 		// however, that's not necessary.
 		return nil
 	})
+}
+
+func (m *model) previewCmd() tea.Msg {
+	return previewMsg(m.filePath())
 }
 
 func fileInfo(path string) os.FileInfo {
