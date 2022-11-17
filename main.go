@@ -35,13 +35,15 @@ type keymap struct {
 	Open      key.Binding
 
 	// Arrow-based movement.
-	Back   key.Binding
-	Up     key.Binding
-	Down   key.Binding
-	Left   key.Binding
-	Right  key.Binding
-	Top    key.Binding
-	Bottom key.Binding
+	Back      key.Binding
+	Up        key.Binding
+	Down      key.Binding
+	Left      key.Binding
+	Right     key.Binding
+	Top       key.Binding
+	Bottom    key.Binding
+	Leftmost  key.Binding
+	Rightmost key.Binding
 
 	// Vim-based movement.
 	VimUp     key.Binding
@@ -66,6 +68,8 @@ var defaultKeymap = keymap{
 	Right:     key.NewBinding(key.WithKeys("right")),
 	Top:       key.NewBinding(key.WithKeys("shift+up")),
 	Bottom:    key.NewBinding(key.WithKeys("shift+down")),
+	Leftmost:  key.NewBinding(key.WithKeys("shift+left")),
+	Rightmost: key.NewBinding(key.WithKeys("shift+right")),
 	VimUp:     key.NewBinding(key.WithKeys("k")),
 	VimDown:   key.NewBinding(key.WithKeys("j")),
 	VimLeft:   key.NewBinding(key.WithKeys("h")),
@@ -252,6 +256,12 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Bottom, m.keys.VimBottom):
 			m.moveBottom()
 
+		case key.Matches(msg, m.keys.Leftmost):
+			m.moveLeftmost()
+
+		case key.Matches(msg, m.keys.Rightmost):
+			m.moveRightmost()
+
 		case key.Matches(msg, m.keys.VimUp):
 			if !m.searchMode {
 				m.moveUp()
@@ -355,6 +365,18 @@ func (m *model) moveBottom() {
 	m.r = m.rows - 1
 	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
 		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
+	}
+}
+
+func (m *model) moveLeftmost() {
+	m.c = 0
+}
+
+func (m *model) moveRightmost() {
+	m.c = m.columns - 1
+	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
+		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
+		m.c = m.columns - 1
 	}
 }
 
