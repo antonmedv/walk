@@ -29,55 +29,27 @@ var (
 	noFiles   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder())
 )
 
-type keymap struct {
-	ForceQuit key.Binding
-	Quit      key.Binding
-	Open      key.Binding
-
-	// Arrow-based movement.
-	Back      key.Binding
-	Up        key.Binding
-	Down      key.Binding
-	Left      key.Binding
-	Right     key.Binding
-	Top       key.Binding
-	Bottom    key.Binding
-	Leftmost  key.Binding
-	Rightmost key.Binding
-
-	// Vim-based movement.
-	VimUp     key.Binding
-	VimDown   key.Binding
-	VimLeft   key.Binding
-	VimRight  key.Binding
-	VimTop    key.Binding
-	VimBottom key.Binding
-
-	// Search mode.
-	Search key.Binding
-}
-
-var defaultKeymap = keymap{
-	ForceQuit: key.NewBinding(key.WithKeys("ctrl+c")),
-	Quit:      key.NewBinding(key.WithKeys("esc")),
-	Open:      key.NewBinding(key.WithKeys("enter")),
-	Back:      key.NewBinding(key.WithKeys("backspace")),
-	Up:        key.NewBinding(key.WithKeys("up")),
-	Down:      key.NewBinding(key.WithKeys("down")),
-	Left:      key.NewBinding(key.WithKeys("left")),
-	Right:     key.NewBinding(key.WithKeys("right")),
-	Top:       key.NewBinding(key.WithKeys("shift+up")),
-	Bottom:    key.NewBinding(key.WithKeys("shift+down")),
-	Leftmost:  key.NewBinding(key.WithKeys("shift+left")),
-	Rightmost: key.NewBinding(key.WithKeys("shift+right")),
-	VimUp:     key.NewBinding(key.WithKeys("k")),
-	VimDown:   key.NewBinding(key.WithKeys("j")),
-	VimLeft:   key.NewBinding(key.WithKeys("h")),
-	VimRight:  key.NewBinding(key.WithKeys("l")),
-	VimTop:    key.NewBinding(key.WithKeys("g")),
-	VimBottom: key.NewBinding(key.WithKeys("G")),
-	Search:    key.NewBinding(key.WithKeys("/")),
-}
+var (
+	keyForceQuit = key.NewBinding(key.WithKeys("ctrl+c"))
+	keyQuit      = key.NewBinding(key.WithKeys("esc"))
+	keyOpen      = key.NewBinding(key.WithKeys("enter"))
+	keyBack      = key.NewBinding(key.WithKeys("backspace"))
+	keyUp        = key.NewBinding(key.WithKeys("up"))
+	keyDown      = key.NewBinding(key.WithKeys("down"))
+	keyLeft      = key.NewBinding(key.WithKeys("left"))
+	keyRight     = key.NewBinding(key.WithKeys("right"))
+	keyTop       = key.NewBinding(key.WithKeys("shift+up"))
+	keyBottom    = key.NewBinding(key.WithKeys("shift+down"))
+	keyLeftmost  = key.NewBinding(key.WithKeys("shift+left"))
+	keyRightmost = key.NewBinding(key.WithKeys("shift+right"))
+	keyVimUp     = key.NewBinding(key.WithKeys("k"))
+	keyVimDown   = key.NewBinding(key.WithKeys("j"))
+	keyVimLeft   = key.NewBinding(key.WithKeys("h"))
+	keyVimRight  = key.NewBinding(key.WithKeys("l"))
+	keyVimTop    = key.NewBinding(key.WithKeys("g"))
+	keyVimBottom = key.NewBinding(key.WithKeys("G"))
+	keySearch    = key.NewBinding(key.WithKeys("/"))
+)
 
 func main() {
 	path, err := os.Getwd()
@@ -100,9 +72,7 @@ func main() {
 	output := termenv.NewOutput(os.Stderr)
 	lipgloss.SetColorProfile(output.ColorProfile())
 
-	keys := defaultKeymap
 	m := &model{
-		keys:      keys,
 		path:      path,
 		width:     80,
 		height:    60,
@@ -119,7 +89,6 @@ func main() {
 }
 
 type model struct {
-	keys           keymap                    // Keybindings.
 	path           string                    // Current dir path we are looking at.
 	files          []fs.DirEntry             // Files we are looking at.
 	c, r           int                       // Selector position in columns and rows.
@@ -165,10 +134,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		if m.searchMode {
-			if key.Matches(msg, m.keys.Search) {
+			if key.Matches(msg, keySearch) {
 				m.searchMode = false
 				return m, nil
-			} else if key.Matches(msg, m.keys.Back) {
+			} else if key.Matches(msg, keyBack) {
 				if len(m.search) > 0 {
 					m.search = m.search[:len(m.search)-1]
 					return m, nil
@@ -198,18 +167,18 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		switch {
-		case key.Matches(msg, m.keys.ForceQuit):
+		case key.Matches(msg, keyForceQuit):
 			_, _ = fmt.Fprintln(os.Stderr) // Keep last item visible after prompt.
 			m.exitCode = 2
 			return m, tea.Quit
 
-		case key.Matches(msg, m.keys.Quit):
+		case key.Matches(msg, keyQuit):
 			_, _ = fmt.Fprintln(os.Stderr) // Keep last item visible after prompt.
 			fmt.Println(m.path)            // Write to cd.
 			m.exitCode = 0
 			return m, tea.Quit
 
-		case key.Matches(msg, m.keys.Open):
+		case key.Matches(msg, keyOpen):
 			m.searchMode = false
 			newPath := filepath.Join(m.path, m.cursorFileName())
 			if fi := fileInfo(newPath); fi.IsDir() {
@@ -231,7 +200,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.openEditor()
 			}
 
-		case key.Matches(msg, m.keys.Back):
+		case key.Matches(msg, keyBack):
 			m.searchMode = false
 			m.prevName = filepath.Base(m.path)
 			m.path = filepath.Join(m.path, "..")
@@ -247,51 +216,51 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.list()
 			m.status()
 
-		case key.Matches(msg, m.keys.Up):
+		case key.Matches(msg, keyUp):
 			m.moveUp()
 
-		case key.Matches(msg, m.keys.Top, m.keys.VimTop):
+		case key.Matches(msg, keyTop, keyVimTop):
 			m.moveTop()
 
-		case key.Matches(msg, m.keys.Bottom, m.keys.VimBottom):
+		case key.Matches(msg, keyBottom, keyVimBottom):
 			m.moveBottom()
 
-		case key.Matches(msg, m.keys.Leftmost):
+		case key.Matches(msg, keyLeftmost):
 			m.moveLeftmost()
 
-		case key.Matches(msg, m.keys.Rightmost):
+		case key.Matches(msg, keyRightmost):
 			m.moveRightmost()
 
-		case key.Matches(msg, m.keys.VimUp):
+		case key.Matches(msg, keyVimUp):
 			if !m.searchMode {
 				m.moveUp()
 			}
 
-		case key.Matches(msg, m.keys.Down):
+		case key.Matches(msg, keyDown):
 			m.moveDown()
 
-		case key.Matches(msg, m.keys.VimDown):
+		case key.Matches(msg, keyVimDown):
 			if !m.searchMode {
 				m.moveDown()
 			}
 
-		case key.Matches(msg, m.keys.Left):
+		case key.Matches(msg, keyLeft):
 			m.moveLeft()
 
-		case key.Matches(msg, m.keys.VimLeft):
+		case key.Matches(msg, keyVimLeft):
 			if !m.searchMode {
 				m.moveLeft()
 			}
 
-		case key.Matches(msg, m.keys.Right):
+		case key.Matches(msg, keyRight):
 			m.moveRight()
 
-		case key.Matches(msg, m.keys.VimRight):
+		case key.Matches(msg, keyVimRight):
 			if !m.searchMode {
 				m.moveRight()
 			}
 
-		case key.Matches(msg, m.keys.Search):
+		case key.Matches(msg, keySearch):
 			m.searchMode = true
 			m.searchId++
 			m.search = ""
