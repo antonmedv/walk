@@ -210,11 +210,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.offset = p.offset
 			} else {
 				m.findPrevName = true
-				m.list()
-				m.status()
 			}
 			m.list()
 			m.status()
+			return m, nil
 
 		case key.Matches(msg, keyUp):
 			m.moveUp()
