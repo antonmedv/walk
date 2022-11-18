@@ -17,22 +17,20 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 	"github.com/sahilm/fuzzy"
 )
 
 var (
-	mainStyle    = lipgloss.NewStyle()
-	previewStyle = lipgloss.NewStyle().Padding(0, 0, 0, 2)
-	warningStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder())
-	modified     = lipgloss.NewStyle().Foreground(lipgloss.Color("#588FE6"))
-	added        = lipgloss.NewStyle().Foreground(lipgloss.Color("#6ECC8E"))
-	untracked    = lipgloss.NewStyle().Foreground(lipgloss.Color("#D95C50"))
-	cursor       = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
-	bar          = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
-	search       = lipgloss.NewStyle().Background(lipgloss.Color("#499F1C")).Foreground(lipgloss.Color("#FFFFFF"))
+	warning   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
+	preview   = lipgloss.NewStyle().PaddingLeft(2)
+	modified  = lipgloss.NewStyle().Foreground(lipgloss.Color("#588FE6"))
+	added     = lipgloss.NewStyle().Foreground(lipgloss.Color("#6ECC8E"))
+	untracked = lipgloss.NewStyle().Foreground(lipgloss.Color("#D95C50"))
+	cursor    = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
+	bar       = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
+	search    = lipgloss.NewStyle().Background(lipgloss.Color("#499F1C")).Foreground(lipgloss.Color("#FFFFFF"))
 )
 
 var (
@@ -59,7 +57,7 @@ var (
 )
 
 func main() {
-	path, err := os.Getwd()
+	startPath, err := os.Getwd()
 	if err != nil {
 		panic(err)
 	}
@@ -70,7 +68,7 @@ func main() {
 		}
 
 		// Maybe it is and argument, so get absolute path.
-		path, err = filepath.Abs(os.Args[1])
+		startPath, err = filepath.Abs(os.Args[1])
 		if err != nil {
 			panic(err)
 		}
@@ -80,7 +78,7 @@ func main() {
 	lipgloss.SetColorProfile(output.ColorProfile())
 
 	m := &model{
-		path:      path,
+		path:      startPath,
 		width:     80,
 		height:    60,
 		positions: make(map[string]position),
@@ -133,7 +131,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
-		m.height = msg.Height - 1 // Account for the location bar.
+		m.height = msg.Height
 		// Reset position history as c&r changes.
 		m.positions = make(map[string]position)
 		// Keep cursor at same place.
@@ -142,11 +140,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Also, m.c&r no longer point to correct indexes.
 		m.c = 0
 		m.r = 0
-		if m.previewMode {
-			return m, m.previewCmd
-		} else {
-			return m, nil
-		}
+		return m, nil
 
 	case tea.KeyMsg:
 		if m.searchMode {
@@ -313,6 +307,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case previewMsg:
 		filePath := string(msg)
+
 		file, err := os.Open(filePath)
 		defer file.Close()
 		if err != nil {
@@ -320,18 +315,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		content, _ := io.ReadAll(file)
-		ext := path.Ext(filePath)
+
 		switch {
-		case ext == ".md":
-			r, _ := glamour.NewTermRenderer(
-				glamour.WithAutoStyle(),
-				glamour.WithWordWrap(m.width/2),
-			)
-			m.previewContent, _ = r.Render(string(content))
 		case utf8.Valid(content):
 			m.previewContent = Replace(string(content), "\t", "    ", -1)
+
 		default:
-			m.previewContent = "No preview available."
+			m.previewContent = warning.Render("No preview available")
 		}
 	}
 
@@ -521,16 +511,19 @@ start:
 
 	empty := ""
 	if len(m.files) == 0 {
-		empty = warningStyle.Render(" No files ")
+		empty = warning.Render("No files")
 	}
 
 	main := bar + "\n" + Join(output, "\n") + empty + "\n"
 
 	if m.previewMode {
-		preview := previewStyle.
-			MaxHeight(m.height).
-			Render(m.previewContent)
-		return lipgloss.JoinHorizontal(lipgloss.Top, main, preview)
+		return lipgloss.JoinHorizontal(
+			lipgloss.Top,
+			main,
+			preview.
+				MaxHeight(m.height).
+				Render(m.previewContent),
+		)
 	} else {
 		return main
 	}
