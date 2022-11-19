@@ -333,78 +333,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *model) moveUp() {
-	m.r--
-	if m.r < 0 {
-		m.r = m.rows - 1
-		m.c--
-	}
-	if m.c < 0 {
-		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
-		m.c = m.columns - 1
-	}
-}
-
-func (m *model) moveDown() {
-	m.r++
-	if m.r >= m.rows {
-		m.r = 0
-		m.c++
-	}
-	if m.c >= m.columns {
-		m.c = 0
-	}
-	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
-		m.r = 0
-		m.c = 0
-	}
-}
-
-func (m *model) moveLeft() {
-	m.c--
-	if m.c < 0 {
-		m.c = m.columns - 1
-	}
-	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
-		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
-		m.c = m.columns - 1
-	}
-}
-
-func (m *model) moveRight() {
-	m.c++
-	if m.c >= m.columns {
-		m.c = 0
-	}
-	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
-		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
-		m.c = m.columns - 1
-	}
-}
-
-func (m *model) moveTop() {
-	m.r = 0
-}
-
-func (m *model) moveBottom() {
-	m.r = m.rows - 1
-	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
-		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
-	}
-}
-
-func (m *model) moveLeftmost() {
-	m.c = 0
-}
-
-func (m *model) moveRightmost() {
-	m.c = m.columns - 1
-	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
-		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
-		m.c = m.columns - 1
-	}
-}
-
 func (m *model) View() string {
 	width := m.width
 	if m.previewMode {
@@ -525,6 +453,78 @@ start:
 		)
 	} else {
 		return main
+	}
+}
+
+func (m *model) moveUp() {
+	m.r--
+	if m.r < 0 {
+		m.r = m.rows - 1
+		m.c--
+	}
+	if m.c < 0 {
+		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
+		m.c = m.columns - 1
+	}
+}
+
+func (m *model) moveDown() {
+	m.r++
+	if m.r >= m.rows {
+		m.r = 0
+		m.c++
+	}
+	if m.c >= m.columns {
+		m.c = 0
+	}
+	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
+		m.r = 0
+		m.c = 0
+	}
+}
+
+func (m *model) moveLeft() {
+	m.c--
+	if m.c < 0 {
+		m.c = m.columns - 1
+	}
+	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
+		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
+		m.c = m.columns - 1
+	}
+}
+
+func (m *model) moveRight() {
+	m.c++
+	if m.c >= m.columns {
+		m.c = 0
+	}
+	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
+		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
+		m.c = m.columns - 1
+	}
+}
+
+func (m *model) moveTop() {
+	m.r = 0
+}
+
+func (m *model) moveBottom() {
+	m.r = m.rows - 1
+	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
+		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
+	}
+}
+
+func (m *model) moveLeftmost() {
+	m.c = 0
+}
+
+func (m *model) moveRightmost() {
+	m.c = m.columns - 1
+	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
+		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
+		m.c = m.columns - 1
 	}
 }
 
