@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"io/fs"
@@ -23,14 +22,11 @@ import (
 )
 
 var (
-	warning   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
-	preview   = lipgloss.NewStyle().PaddingLeft(2)
-	modified  = lipgloss.NewStyle().Foreground(lipgloss.Color("#588FE6"))
-	added     = lipgloss.NewStyle().Foreground(lipgloss.Color("#6ECC8E"))
-	untracked = lipgloss.NewStyle().Foreground(lipgloss.Color("#D95C50"))
-	cursor    = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
-	bar       = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
-	search    = lipgloss.NewStyle().Background(lipgloss.Color("#499F1C")).Foreground(lipgloss.Color("#FFFFFF"))
+	warning = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
+	preview = lipgloss.NewStyle().PaddingLeft(2)
+	cursor  = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
+	bar     = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
+	search  = lipgloss.NewStyle().Background(lipgloss.Color("#499F1C")).Foreground(lipgloss.Color("#FFFFFF"))
 )
 
 var (
@@ -84,7 +80,6 @@ func main() {
 		positions: make(map[string]position),
 	}
 	m.list()
-	m.status()
 
 	p := tea.NewProgram(m, tea.WithOutput(os.Stderr))
 	if _, err := p.Run(); err != nil {
@@ -94,23 +89,22 @@ func main() {
 }
 
 type model struct {
-	path           string                    // Current dir path we are looking at.
-	files          []fs.DirEntry             // Files we are looking at.
-	c, r           int                       // Selector position in columns and rows.
-	columns, rows  int                       // Displayed amount of rows and columns.
-	width, height  int                       // Terminal size.
-	offset         int                       // Scroll position.
-	styles         map[string]lipgloss.Style // Colors of different files based on git status.
-	positions      map[string]position       // Map of cursor positions per path.
-	search         string                    // Type to select files with this value.
-	searchMode     bool                      // Whether type-to-select is active.
-	searchId       int                       // Search id to indicate what search we are currently on.
-	matchedIndexes []int                     // List of char found indexes.
-	prevName       string                    // Base name of previous directory before "up".
-	findPrevName   bool                      // On View(), set c&r to point to prevName.
-	exitCode       int                       // Exit code.
-	previewMode    bool                      // Whether preview is active.
-	previewContent string                    // Content of preview.
+	path           string              // Current dir path we are looking at.
+	files          []fs.DirEntry       // Files we are looking at.
+	c, r           int                 // Selector position in columns and rows.
+	columns, rows  int                 // Displayed amount of rows and columns.
+	width, height  int                 // Terminal size.
+	offset         int                 // Scroll position.
+	positions      map[string]position // Map of cursor positions per path.
+	search         string              // Type to select files with this value.
+	searchMode     bool                // Whether type-to-select is active.
+	searchId       int                 // Search id to indicate what search we are currently on.
+	matchedIndexes []int               // List of char found indexes.
+	prevName       string              // Base name of previous directory before "up".
+	findPrevName   bool                // On View(), set c&r to point to prevName.
+	exitCode       int                 // Exit code.
+	previewMode    bool                // Whether preview is active.
+	previewContent string              // Content of preview.
 }
 
 type position struct {
@@ -210,7 +204,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.offset = 0
 				}
 				m.list()
-				m.status()
 			} else {
 				// Open file. This will block until complete.
 				return m, m.openEditor()
@@ -228,7 +221,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.findPrevName = true
 			}
 			m.list()
-			m.status()
 
 			if m.previewMode {
 				return m, m.previewCmd
@@ -489,15 +481,9 @@ start:
 		for i := 0; i < m.columns; i++ {
 			if i == m.c && j == m.r {
 				row[i] = cursor.Render(names[i][j])
-				continue
-			}
-			s, ok := m.styles[TrimRight(names[i][j], " ")]
-			if ok {
-				row[i] = s.Render(names[i][j])
 			} else {
 				row[i] = names[i][j]
 			}
-
 		}
 		output[j] = Join(row, separator)
 	}
@@ -545,71 +531,12 @@ start:
 func (m *model) list() {
 	var err error
 	m.files = nil
-	m.styles = nil
 
 	// ReadDir already returns files and dirs sorted by filename.
 	m.files, err = os.ReadDir(m.path)
 	if err != nil {
 		panic(err)
 	}
-}
-
-func (m *model) status() {
-	// Going to keep file names and format string for git status.
-	m.styles = map[string]lipgloss.Style{}
-
-	status := m.gitStatus()
-	for _, file := range m.files {
-		name := file.Name()
-		if file.IsDir() {
-			name += "/"
-		}
-		// gitStatus returns file names of modified files from repo root.
-		fullPath := filepath.Join(m.path, name)
-		for path, mode := range status {
-			if subPath(path, fullPath) {
-				if mode[0] == '?' || mode[1] == '?' {
-					m.styles[name] = untracked
-				} else if mode[0] == 'A' || mode[1] == 'A' {
-					m.styles[name] = added
-				} else if mode[0] == 'M' || mode[1] == 'M' {
-					m.styles[name] = modified
-				}
-			}
-		}
-	}
-}
-
-func (m *model) gitRepo() (string, error) {
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Dir = m.path
-	err := cmd.Run()
-	return Trim(out.String(), "\n"), err
-}
-
-func (m *model) gitStatus() map[string]string {
-	repo, err := m.gitRepo()
-	if err != nil {
-		return nil
-	}
-	cmd := exec.Command("git", "status", "--porcelain=v1")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Dir = m.path
-	err = cmd.Run()
-	if err != nil {
-		return nil
-	}
-	paths := map[string]string{}
-	for _, line := range Split(Trim(out.String(), "\n"), "\n") {
-		if len(line) == 0 {
-			continue
-		}
-		paths[filepath.Join(repo, line[3:])] = line[:2]
-	}
-	return paths
 }
 
 func (m *model) listHeight() int {
