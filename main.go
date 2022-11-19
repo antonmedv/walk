@@ -114,7 +114,6 @@ type position struct {
 
 type (
 	clearSearchMsg int
-	previewMsg     string
 )
 
 func (m *model) Init() tea.Cmd {
@@ -164,6 +163,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.updateOffset()
 				m.saveCursorPosition()
+				m.preview()
 				// Save search id to clear only current search after delay.
 				// User may have already started typing next search.
 				searchId := m.searchId
@@ -221,12 +221,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.findPrevName = true
 			}
 			m.list()
-
-			if m.previewMode {
-				return m, m.previewCmd
-			} else {
-				return m, nil
-			}
+			m.preview()
+			return m, nil
 
 		case key.Matches(msg, keyUp):
 			m.moveUp()
@@ -288,45 +284,24 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.prevName = fileName
 			m.findPrevName = true
+
 			if m.previewMode {
-				return m, tea.Sequence(tea.EnterAltScreen, m.previewCmd)
+				m.preview()
+				return m, tea.EnterAltScreen
 			} else {
 				m.previewContent = ""
 				return m, tea.ExitAltScreen
 			}
+
 		}
 
 		m.updateOffset()
 		m.saveCursorPosition()
-
-		if m.previewMode {
-			return m, m.previewCmd
-		} else {
-			return m, nil
-		}
+		m.preview()
 
 	case clearSearchMsg:
 		if m.searchId == int(msg) {
 			m.searchMode = false
-		}
-
-	case previewMsg:
-		filePath := string(msg)
-
-		file, err := os.Open(filePath)
-		defer file.Close()
-		if err != nil {
-			m.previewContent = err.Error()
-			return m, nil
-		}
-		content, _ := io.ReadAll(file)
-
-		switch {
-		case utf8.Valid(content):
-			m.previewContent = Replace(string(content), "\t", "    ", -1)
-
-		default:
-			m.previewContent = warning.Render("No preview available")
 		}
 	}
 
@@ -559,7 +534,6 @@ func (m *model) updateOffset() {
 	}
 }
 
-// Save position to restore later.
 func (m *model) saveCursorPosition() {
 	m.positions[m.path] = position{
 		c:      m.c,
@@ -598,12 +572,37 @@ func (m *model) openEditor() tea.Cmd {
 	})
 }
 
-func (m *model) previewCmd() tea.Msg {
+func (m *model) preview() {
+	if !m.previewMode {
+		return
+	}
 	filePath, ok := m.filePath()
 	if !ok {
-		return nil
+		return
 	}
-	return previewMsg(filePath)
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		return
+	}
+	if fileInfo.IsDir() {
+		m.previewContent = ""
+		return
+	}
+
+	file, err := os.Open(filePath)
+	defer file.Close()
+	if err != nil {
+		m.previewContent = err.Error()
+		return
+	}
+	content, _ := io.ReadAll(file)
+
+	switch {
+	case utf8.Valid(content):
+		m.previewContent = Replace(string(content), "\t", "    ", -1)
+	default:
+		m.previewContent = warning.Render("No preview available")
+	}
 }
 
 func fileInfo(path string) os.FileInfo {
