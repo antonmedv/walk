@@ -614,19 +614,6 @@ func fileInfo(path string) os.FileInfo {
 	return fi
 }
 
-func subPath(path string, fullPath string) bool {
-	p := Split(path, "/")
-	for i, s := range Split(fullPath, "/") {
-		if i >= len(p) {
-			return false
-		}
-		if p[i] != s {
-			return false
-		}
-	}
-	return true
-}
-
 func lookup(names []string, val string) string {
 	for _, name := range names {
 		val, ok := os.LookupEnv(name)
