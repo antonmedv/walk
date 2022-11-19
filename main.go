@@ -135,9 +135,12 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Reset position history as c&r changes.
 		m.positions = make(map[string]position)
 		// Keep cursor at same place.
-		m.prevName = m.fileName()
-		m.findPrevName = true
-		// Also, m.c&r no longer point to correct indexes.
+		fileName, ok := m.fileName()
+		if ok {
+			m.prevName = fileName
+			m.findPrevName = true
+		}
+		// Also, m.c&r no longer point to the correct indexes.
 		m.c = 0
 		m.r = 0
 		return m, nil
@@ -190,10 +193,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, keyOpen):
 			m.searchMode = false
-			newPath := filepath.Join(m.path, m.fileName())
-			if fi := fileInfo(newPath); fi.IsDir() {
+			filePath, ok := m.filePath()
+			if !ok {
+				return m, nil
+			}
+			if fi := fileInfo(filePath); fi.IsDir() {
 				// Enter subdirectory.
-				m.path = newPath
+				m.path = filePath
 				if p, ok := m.positions[m.path]; ok {
 					m.c = p.c
 					m.r = p.r
@@ -223,6 +229,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.list()
 			m.status()
+
 			if m.previewMode {
 				return m, m.previewCmd
 			} else {
@@ -283,7 +290,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Reset position history as c&r changes.
 			m.positions = make(map[string]position)
 			// Keep cursor at same place.
-			m.prevName = m.fileName()
+			fileName, ok := m.fileName()
+			if !ok {
+				return m, nil
+			}
+			m.prevName = fileName
 			m.findPrevName = true
 			if m.previewMode {
 				return m, tea.Sequence(tea.EnterAltScreen, m.previewCmd)
@@ -292,8 +303,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.ExitAltScreen
 			}
 		}
+
 		m.updateOffset()
 		m.saveCursorPosition()
+
 		if m.previewMode {
 			return m, m.previewCmd
 		} else {
@@ -405,10 +418,11 @@ func (m *model) View() string {
 	if m.previewMode {
 		width = m.width / 2
 	}
+	height := m.listHeight()
 
 	// If it's possible to fit all files in one column on a third of the screen,
 	// just use one column. Otherwise, let's squeeze listing in half of screen.
-	m.columns = len(m.files) / (m.height / 3)
+	m.columns = len(m.files) / (height / 3)
 	if m.columns <= 0 {
 		m.columns = 1
 	}
@@ -487,8 +501,8 @@ start:
 		}
 		output[j] = Join(row, separator)
 	}
-	if len(output) >= m.offset+m.height {
-		output = output[m.offset : m.offset+m.height]
+	if len(output) >= m.offset+height {
+		output = output[m.offset : m.offset+height]
 	}
 
 	// Location bar (grey).
@@ -509,12 +523,11 @@ start:
 	}
 	bar := bar.Render(location) + search.Render(filter)
 
-	empty := ""
 	if len(m.files) == 0 {
-		empty = warning.Render("No files")
+		return bar + "\n" + warning.Render("No files")
 	}
 
-	main := bar + "\n" + Join(output, "\n") + empty + "\n"
+	main := bar + "\n" + Join(output, "\n")
 
 	if m.previewMode {
 		return lipgloss.JoinHorizontal(
@@ -599,18 +612,23 @@ func (m *model) gitStatus() map[string]string {
 	return paths
 }
 
+func (m *model) listHeight() int {
+	return m.height - 1 // Subtract 1 for location bar.
+}
+
 func (m *model) updateOffset() {
+	height := m.listHeight()
 	// Scrolling down.
-	if m.r >= m.offset+m.height {
-		m.offset = m.r - m.height + 1
+	if m.r >= m.offset+height {
+		m.offset = m.r - height + 1
 	}
 	// Scrolling up.
 	if m.r < m.offset {
 		m.offset = m.r
 	}
 	// Don't scroll more than there are rows.
-	if m.offset > m.rows-m.height && m.rows > m.height {
-		m.offset = m.rows - m.height
+	if m.offset > m.rows-height && m.rows > height {
+		m.offset = m.rows - height
 	}
 }
 
@@ -623,20 +641,28 @@ func (m *model) saveCursorPosition() {
 	}
 }
 
-func (m *model) fileName() string {
+func (m *model) fileName() (string, bool) {
 	i := m.c*m.rows + m.r
 	if i >= len(m.files) {
-		panic("file index out of range")
+		return "", false
 	}
-	return m.files[i].Name()
+	return m.files[i].Name(), true
 }
 
-func (m *model) filePath() string {
-	return path.Join(m.path, m.fileName())
+func (m *model) filePath() (string, bool) {
+	fileName, ok := m.fileName()
+	if !ok {
+		return fileName, false
+	}
+	return path.Join(m.path, fileName), true
 }
 
 func (m *model) openEditor() tea.Cmd {
-	execCmd := exec.Command(lookup([]string{"LLAMA_EDITOR", "EDITOR"}, "less"), m.filePath())
+	filePath, ok := m.filePath()
+	if !ok {
+		return nil
+	}
+	execCmd := exec.Command(lookup([]string{"LLAMA_EDITOR", "EDITOR"}, "less"), filePath)
 	return tea.ExecProcess(execCmd, func(err error) tea.Msg {
 		// Note: we could return a message here indicating that editing is
 		// finished and altering our application about any errors. For now,
@@ -646,7 +672,11 @@ func (m *model) openEditor() tea.Cmd {
 }
 
 func (m *model) previewCmd() tea.Msg {
-	return previewMsg(m.filePath())
+	filePath, ok := m.filePath()
+	if !ok {
+		return nil
+	}
+	return previewMsg(filePath)
 }
 
 func fileInfo(path string) os.FileInfo {
