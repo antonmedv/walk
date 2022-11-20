@@ -1,0 +1,20 @@
+name: llama
+version: 1.1.1
+summary: Terminal JSON viewer
+description: Terminal JSON viewer
+base: core18
+grade: stable
+confinement: strict
+
+apps:
+  llama:
+    command: llama
+    plugs: [home, network]
+
+parts:
+  llama:
+    plugin: go
+    go-channel: 1.18/stable
+    source: .
+    source-type: git
+    go-importpath: github.com/antonmedv/llama
