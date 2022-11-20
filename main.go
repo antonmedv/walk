@@ -377,6 +377,22 @@ start:
 		m.saveCursorPosition()
 	}
 
+	// Get output rows width before coloring.
+	outputWidth := 0
+	if m.previewMode {
+		row := make([]string, m.columns)
+		for i := 0; i < m.columns; i++ {
+			if len(names[i]) > 0 {
+				row[i] = names[i][0]
+			} else {
+				outputWidth = width
+			}
+		}
+		outputWidth = max(outputWidth, len(Join(row, separator)))
+	} else {
+		outputWidth = width
+	}
+
 	// Let's add colors to file names.
 	output := make([]string, m.rows)
 	for j := 0; j < m.rows; j++ {
@@ -393,12 +409,6 @@ start:
 
 	if len(output) >= m.offset+height {
 		output = output[m.offset : m.offset+height]
-	}
-
-	// Get output rows width.
-	outputWidth := 20 // Default width for dirs without files.
-	if len(output) > 0 {
-		outputWidth = len(output[0])
 	}
 
 	// Location bar (grey).
@@ -648,6 +658,13 @@ func usage() {
 
 func min(a, b int) int {
 	if a < b {
+		return a
+	}
+	return b
+}
+
+func max(a, b int) int {
+	if a > b {
 		return a
 	}
 	return b
