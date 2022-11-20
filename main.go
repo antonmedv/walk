@@ -377,7 +377,7 @@ start:
 		m.saveCursorPosition()
 	}
 
-	// Let's add colors from git status to file names.
+	// Let's add colors to file names.
 	output := make([]string, m.rows)
 	for j := 0; j < m.rows; j++ {
 		row := make([]string, m.columns)
@@ -390,8 +390,15 @@ start:
 		}
 		output[j] = Join(row, separator)
 	}
+
 	if len(output) >= m.offset+height {
 		output = output[m.offset : m.offset+height]
+	}
+
+	// Get output rows width.
+	outputWidth := 20 // Default width for dirs without files.
+	if len(output) > 0 {
+		outputWidth = len(output[0])
 	}
 
 	// Location bar (grey).
@@ -399,16 +406,15 @@ start:
 	if userHomeDir, err := os.UserHomeDir(); err == nil {
 		location = Replace(m.path, userHomeDir, "~", 1)
 	}
+
 	// Filter bar (green).
 	filter := ""
 	if m.searchMode {
 		filter = "/" + m.search
 	}
 	barLen := len(location) + len(filter)
-	if barLen > width {
-		// TODO: this panics as soon as we have a filter and the path is too long.
-		// runtime error: slice bounds out of range [12:11]
-		location = location[barLen-width:]
+	if barLen > outputWidth {
+		location = location[min(barLen-outputWidth, len(location)):]
 	}
 	bar := bar.Render(location) + search.Render(filter)
 
@@ -638,4 +644,11 @@ func usage() {
 	_ = w.Flush()
 	_, _ = fmt.Fprintf(os.Stderr, "\n")
 	os.Exit(1)
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
