@@ -27,6 +27,7 @@ var (
 	cursor  = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
 	bar     = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
 	search  = lipgloss.NewStyle().Background(lipgloss.Color("#499F1C")).Foreground(lipgloss.Color("#FFFFFF"))
+	danger  = lipgloss.NewStyle().Background(lipgloss.Color("#FF0000")).Foreground(lipgloss.Color("#FFFFFF"))
 )
 
 var (
@@ -50,6 +51,8 @@ var (
 	keyVimBottom = key.NewBinding(key.WithKeys("G"))
 	keySearch    = key.NewBinding(key.WithKeys("/"))
 	keyPreview   = key.NewBinding(key.WithKeys(" "))
+	keyDelete    = key.NewBinding(key.WithKeys("d"))
+	keyUndo      = key.NewBinding(key.WithKeys("u"))
 )
 
 func main() {
@@ -89,22 +92,24 @@ func main() {
 }
 
 type model struct {
-	path           string              // Current dir path we are looking at.
-	files          []fs.DirEntry       // Files we are looking at.
-	c, r           int                 // Selector position in columns and rows.
-	columns, rows  int                 // Displayed amount of rows and columns.
-	width, height  int                 // Terminal size.
-	offset         int                 // Scroll position.
-	positions      map[string]position // Map of cursor positions per path.
-	search         string              // Type to select files with this value.
-	searchMode     bool                // Whether type-to-select is active.
-	searchId       int                 // Search id to indicate what search we are currently on.
-	matchedIndexes []int               // List of char found indexes.
-	prevName       string              // Base name of previous directory before "up".
-	findPrevName   bool                // On View(), set c&r to point to prevName.
-	exitCode       int                 // Exit code.
-	previewMode    bool                // Whether preview is active.
-	previewContent string              // Content of preview.
+	path              string              // Current dir path we are looking at.
+	files             []fs.DirEntry       // Files we are looking at.
+	c, r              int                 // Selector position in columns and rows.
+	columns, rows     int                 // Displayed amount of rows and columns.
+	width, height     int                 // Terminal size.
+	offset            int                 // Scroll position.
+	positions         map[string]position // Map of cursor positions per path.
+	search            string              // Type to select files with this value.
+	searchMode        bool                // Whether type-to-select is active.
+	searchId          int                 // Search id to indicate what search we are currently on.
+	matchedIndexes    []int               // List of char found indexes.
+	prevName          string              // Base name of previous directory before "up".
+	findPrevName      bool                // On View(), set c&r to point to prevName.
+	exitCode          int                 // Exit code.
+	previewMode       bool                // Whether preview is active.
+	previewContent    string              // Content of preview.
+	deleteCurrentFile bool                // Whether to delete current file.
+	toBeDeleted       []toDelete          // Map of files to be deleted.
 }
 
 type position struct {
@@ -112,8 +117,14 @@ type position struct {
 	offset int
 }
 
+type toDelete struct {
+	path string
+	at   time.Time
+}
+
 type (
 	clearSearchMsg int
+	toBeDeletedMsg int
 )
 
 func (m *model) Init() tea.Cmd {
@@ -177,12 +188,14 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keyForceQuit):
 			_, _ = fmt.Fprintln(os.Stderr) // Keep last item visible after prompt.
 			m.exitCode = 2
+			m.performPendingDeletions()
 			return m, tea.Quit
 
 		case key.Matches(msg, keyQuit):
 			_, _ = fmt.Fprintln(os.Stderr) // Keep last item visible after prompt.
 			fmt.Println(m.path)            // Write to cd.
 			m.exitCode = 0
+			m.performPendingDeletions()
 			return m, tea.Quit
 
 		case key.Matches(msg, keyOpen):
@@ -293,8 +306,37 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.ExitAltScreen
 			}
 
-		}
+		case key.Matches(msg, keyDelete):
+			filePathToDelete, ok := m.filePath()
+			if ok {
+				if m.deleteCurrentFile {
+					m.deleteCurrentFile = false
+					m.toBeDeleted = append(m.toBeDeleted, toDelete{
+						path: filePathToDelete,
+						at:   time.Now().Add(6 * time.Second),
+					})
+					m.list()
+					m.previewContent = ""
+					return m, tea.Tick(time.Second, func(time.Time) tea.Msg {
+						return toBeDeletedMsg(0)
+					})
+				} else {
+					m.deleteCurrentFile = true
+				}
+			}
+			return m, nil
 
+		case key.Matches(msg, keyUndo):
+			if len(m.toBeDeleted) > 0 {
+				m.toBeDeleted = m.toBeDeleted[:len(m.toBeDeleted)-1]
+				m.list()
+				m.previewContent = ""
+				return m, nil
+			}
+
+		} // End of switch statement for key presses.
+
+		m.deleteCurrentFile = false
 		m.updateOffset()
 		m.saveCursorPosition()
 		m.preview()
@@ -302,6 +344,22 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case clearSearchMsg:
 		if m.searchId == int(msg) {
 			m.searchMode = false
+		}
+
+	case toBeDeletedMsg:
+		toBeDeleted := make([]toDelete, 0)
+		for _, td := range m.toBeDeleted {
+			if td.at.After(time.Now()) {
+				toBeDeleted = append(toBeDeleted, td)
+			} else {
+				_ = os.RemoveAll(td.path)
+			}
+		}
+		m.toBeDeleted = toBeDeleted
+		if len(m.toBeDeleted) > 0 {
+			return m, tea.Tick(time.Second, func(time.Time) tea.Msg {
+				return toBeDeletedMsg(0)
+			})
 		}
 	}
 
@@ -399,7 +457,11 @@ start:
 		row := make([]string, m.columns)
 		for i := 0; i < m.columns; i++ {
 			if i == m.c && j == m.r {
-				row[i] = cursor.Render(names[i][j])
+				if m.deleteCurrentFile {
+					row[i] = danger.Render(names[i][j])
+				} else {
+					row[i] = cursor.Render(names[i][j])
+				}
 			} else {
 				row[i] = names[i][j]
 			}
@@ -428,11 +490,19 @@ start:
 	}
 	bar := bar.Render(location) + search.Render(filter)
 
+	main := bar + "\n" + Join(output, "\n")
+
 	if len(m.files) == 0 {
-		return bar + "\n" + warning.Render("No files")
+		main = bar + "\n" + warning.Render("No files")
 	}
 
-	main := bar + "\n" + Join(output, "\n")
+	// Delete bar.
+	if len(m.toBeDeleted) > 0 {
+		toDelete := m.toBeDeleted[len(m.toBeDeleted)-1]
+		timeLeft := int(toDelete.at.Sub(time.Now()).Seconds())
+		deleteBar := fmt.Sprintf("%v deleted. (u)ndo %v", path.Base(toDelete.path), timeLeft)
+		main += "\n" + danger.Render(deleteBar)
+	}
 
 	if m.previewMode {
 		return lipgloss.JoinHorizontal(
@@ -524,14 +594,28 @@ func (m *model) list() {
 	m.files = nil
 
 	// ReadDir already returns files and dirs sorted by filename.
-	m.files, err = os.ReadDir(m.path)
+	files, err := os.ReadDir(m.path)
 	if err != nil {
 		panic(err)
+	}
+
+files:
+	for _, file := range files {
+		for _, toDelete := range m.toBeDeleted {
+			if path.Join(m.path, file.Name()) == toDelete.path {
+				continue files
+			}
+		}
+		m.files = append(m.files, file)
 	}
 }
 
 func (m *model) listHeight() int {
-	return m.height - 1 // Subtract 1 for location bar.
+	h := m.height - 1 // Subtract 1 for location bar.
+	if len(m.toBeDeleted) > 0 {
+		h-- // Subtract 1 for delete bar.
+	}
+	return h
 }
 
 func (m *model) updateOffset() {
@@ -619,6 +703,13 @@ func (m *model) preview() {
 	default:
 		m.previewContent = warning.Render("No preview available")
 	}
+}
+
+func (m *model) performPendingDeletions() {
+	for _, toDelete := range m.toBeDeleted {
+		_ = os.RemoveAll(toDelete.path)
+	}
+	m.toBeDeleted = nil
 }
 
 func fileInfo(path string) os.FileInfo {
