@@ -108,5 +108,5 @@ jobs:
       - name: Bump formulae
         uses: Homebrew/actions/bump-formulae@master
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.MY_TOKEN }}
           formulae: fx
