@@ -436,7 +436,7 @@ start:
 	}
 
 	// Get output rows width before coloring.
-	outputWidth := 0
+	outputWidth := len(path.Base(m.path)) // Use current dir name as default.
 	if m.previewMode {
 		row := make([]string, m.columns)
 		for i := 0; i < m.columns; i++ {
