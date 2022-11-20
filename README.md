@@ -17,6 +17,14 @@ the llama. That's it. As simple and dumb as a llama.
 ## Install
 
 ```
+brew install llama
+```
+
+```
+snap install llama
+```
+
+```
 go install github.com/antonmedv/llama@latest
 ```
 
@@ -72,7 +80,6 @@ Note: we need a such helper as the child process can't modify the working direct
 | `Arrows`, `hjkl` | Move cursor       |
 | `Enter`          | Enter directory   |
 | `Backspace`      | Exit directory    |
-| `[A-Z]`          | Fuzzy search      |
 | `Esc`            | Exit with cd      |
 | `Ctrl+C`         | Exit without cd   |
 | `/`              | Fuzzy search      |
