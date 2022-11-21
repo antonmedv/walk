@@ -109,4 +109,4 @@ jobs:
         uses: Homebrew/actions/bump-formulae@master
         with:
           token: ${{ secrets.MY_TOKEN }}
-          formulae: fx
+          formulae: llama
