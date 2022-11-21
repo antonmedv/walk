@@ -644,7 +644,7 @@ func (m *model) saveCursorPosition() {
 
 func (m *model) fileName() (string, bool) {
 	i := m.c*m.rows + m.r
-	if i >= len(m.files) {
+	if i >= len(m.files) || i < 0 {
 		return "", false
 	}
 	return m.files[i].Name(), true
