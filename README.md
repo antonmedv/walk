@@ -2,7 +2,7 @@
 
 <p align="center">
   <br>
-  <img src="https://medv.io/assets/llama/llama.gif" width="520" alt="Llama Screenshot">
+  <img src=".github/demo.gif" width="600" alt="Llama Demo">
   <br>
 </p>
 
