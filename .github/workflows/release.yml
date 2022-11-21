@@ -26,7 +26,7 @@ jobs:
         run: |
           set -x
           sed -i "s/version: .*/version: ${RELEASE_VERSION}/" snap/snapcraft.yaml
-          git add version.go snap/snapcraft.yaml
+          git add snap/snapcraft.yaml
           git config --global user.email "github-actions@github.com"
           git config --global user.name "github-actions"
           git commit -m "Release $RELEASE_VERSION"
