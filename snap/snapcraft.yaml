@@ -1,5 +1,5 @@
 name: llama
-version: v1.2.0
+version: v1.1.1
 summary: Terminal JSON viewer
 description: Terminal JSON viewer
 base: core18
