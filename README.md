@@ -30,7 +30,6 @@ go install github.com/antonmedv/llama@latest
 
 Or download [prebuild binaries](https://github.com/antonmedv/llama/releases).
 
-
 Put the next function into the **.bashrc** or a similar config:
 
 <table>
@@ -71,20 +70,24 @@ function ll() {
 </table>
 
 
-Note: we need a such helper as the child process can't modify the working directory of the parent process.
+Note: we need a such helper as the child process can't modify the working
+directory of the parent process.
 
 ## Usage
 
-| Key binding      | Description       |
-|------------------|-------------------|
-| `Arrows`, `hjkl` | Move cursor       |
-| `Enter`          | Enter directory   |
-| `Backspace`      | Exit directory    |
-| `Esc`            | Exit with cd      |
-| `Ctrl+C`         | Exit without cd   |
-| `/`              | Fuzzy search      |
+| Key binding      | Description        |
+|------------------|--------------------|
+| `Arrows`, `hjkl` | Move cursor        |
+| `Enter`          | Enter directory    |
+| `Backspace`      | Exit directory     |
+| `Space`          | Toggle preview     |
+| `Esc`            | Exit with cd       |
+| `Ctrl+C`         | Exit without cd    |
+| `/`              | Fuzzy search       |
+| `dd`             | Delete file of dir |
 
-The `EDITOR` or `LLAMA_EDITOR` environment variable used for openning files from the llama.
+The `EDITOR` or `LLAMA_EDITOR` environment variable used for opening files from
+the llama.
 
 ```bash
 export EDITOR=vim
