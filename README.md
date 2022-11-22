@@ -2,7 +2,7 @@
 
 <p align="center">
   <br>
-  <img src=".github/demo.gif" width="600" alt="Llama Demo">
+  <img src=".github/images/demo.gif" width="600" alt="Llama Demo">
   <br>
 </p>
 
@@ -92,6 +92,15 @@ the llama.
 ```bash
 export EDITOR=vim
 ```
+
+Preview mode:
+
+<img src=".github/images/preview-mode.gif" width="600" alt="Llama Preview Mode">
+
+Delete file or directory:
+
+<img src=".github/images/rm-demo.gif" width="600" alt="Llama Deletes a File">
+
 
 ## License
 
