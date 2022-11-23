@@ -25,7 +25,7 @@ snap install llama
 ```
 
 ```
-pkg_add llama       # OpenBSD
+pkg_add llama
 ```
 
 ```
