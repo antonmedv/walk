@@ -84,7 +84,7 @@ directory of the parent process.
 | `Esc`            | Exit with cd       |
 | `Ctrl+C`         | Exit without cd    |
 | `/`              | Fuzzy search       |
-| `dd`             | Delete file of dir |
+| `dd`             | Delete file or dir |
 
 The `EDITOR` or `LLAMA_EDITOR` environment variable used for opening files from
 the llama.
