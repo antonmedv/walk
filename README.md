@@ -25,6 +25,10 @@ snap install llama
 ```
 
 ```
+pkg_add llama       # OpenBSD
+```
+
+```
 go install github.com/antonmedv/llama@latest
 ```
 
