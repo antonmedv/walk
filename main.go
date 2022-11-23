@@ -21,6 +21,8 @@ import (
 	"github.com/sahilm/fuzzy"
 )
 
+var Version = "v1.2.0"
+
 var (
 	warning = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
 	preview = lipgloss.NewStyle().PaddingLeft(2)
@@ -64,6 +66,10 @@ func main() {
 	if len(os.Args) == 2 {
 		if os.Args[1] == "--help" || os.Args[1] == "-h" {
 			usage()
+		}
+
+		if os.Args[1] == "--version" || os.Args[1] == "-v" {
+			version()
 		}
 
 		// Maybe it is and argument, so get absolute path.
@@ -746,6 +752,11 @@ func usage() {
 	put("    dd\tDelete file or dir")
 	_ = w.Flush()
 	_, _ = fmt.Fprintf(os.Stderr, "\n")
+	os.Exit(1)
+}
+
+func version() {
+	fmt.Fprintf(os.Stderr, "\n  %s %s\n\n", cursor.Render(" llama "), Version)
 	os.Exit(1)
 }
 
