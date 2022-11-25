@@ -663,7 +663,11 @@ func (m *model) openEditor() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	execCmd := exec.Command(lookup([]string{"LLAMA_EDITOR", "EDITOR"}, "less"), filePath)
+
+	cmdline := Split(lookup([]string{"LLAMA_EDITOR", "EDITOR"}, "less"), " ")
+	cmdline = append(cmdline, filePath)
+
+	execCmd := exec.Command(cmdline[0], cmdline[1:]...)
 	return tea.ExecProcess(execCmd, func(err error) tea.Msg {
 		// Note: we could return a message here indicating that editing is
 		// finished and altering our application about any errors. For now,
