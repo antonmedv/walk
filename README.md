@@ -14,6 +14,14 @@ replacement. So I build "llama". It allows for quick navigation with fuzzy
 searching. `cd` integration is quite simple. And you can open `vim` right from
 the llama. That's it. As simple and dumb as a llama.
 
+## Getting Started
+- [Installation](#install)
+- [Usage](#usage)
+- [Configuration](#configuration)
+  - [Editor](#editor)
+  - [Key Bindings](#key-bindings)
+- [License](#license)
+
 ## Install
 
 ```
