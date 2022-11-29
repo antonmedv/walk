@@ -40,7 +40,6 @@ Put the next function into the **.bashrc** or a similar config:
 <tr>
   <th> Bash </th>
   <th> Fish </th>
-  <th> PowerShell </th>
 </tr>
 <tr>
 <td>
@@ -61,7 +60,12 @@ end
 ```
 
 </td>
-<td>
+</tr>
+<tr>
+  <th colspan="2"> PowerShell </th>
+</tr>
+<tr>
+<td colspan="2">
 
 ```powershell
 function ll() {
