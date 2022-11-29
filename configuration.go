@@ -48,14 +48,7 @@ var (
 )
 
 func processConfig() {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
-
-	configDir := filepath.Join(homeDir, ".config", "llama", "config.json")
-
-	file, err := os.Open(configDir)
+	file, err := os.Open(getConfigPath())
 	if err != nil {
 		return // Don't load configuration
 	}
@@ -79,4 +72,19 @@ func processConfig() {
 			binding.SetEnabled(!bindingConfig.Disabled)
 		}
 	}
+}
+
+func getConfigPath() string {
+	// Try to resolve path from environment variable
+	value, ok := os.LookupEnv("LLAMA_CONFIG")
+	if ok && value != "" {
+		return value
+	}
+
+	// Resolve default path from user's home directory
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		panic(err)
+	}
+	return filepath.Join(homeDir, ".config", "llama", "config.json")
 }

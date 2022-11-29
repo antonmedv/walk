@@ -64,7 +64,7 @@ var (
 )
 
 func main() {
-	// Load configuration from ~/.config/llama/config.json if it exists
+	// Load configuration from ~/.config/llama/config.json or LLAMA_CONFIG
 	processConfig()
 
 	startPath, err := os.Getwd()
