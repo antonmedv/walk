@@ -95,13 +95,6 @@ directory of the parent process.
 | `/`              | Fuzzy search       |
 | `dd`             | Delete file or dir |
 
-The `EDITOR` or `LLAMA_EDITOR` environment variable used for opening files from
-the llama.
-
-```bash
-export EDITOR=vim
-```
-
 Preview mode:
 
 <img src=".github/images/preview-mode.gif" width="600" alt="Llama Preview Mode">
@@ -119,6 +112,91 @@ Delete file or directory:
   Then, select that font as your font for the terminal.
 
   <img src=".github/images/demo-icons.gif" width="600" alt="Llama Icons Support">
+
+## Configuration
+### Editor
+The editor used for opening files from llama can be configured using the `EDITOR` or `LLAMA_EDITOR` environment variable.
+<table>
+<tr>
+  <th> Bash </th>
+  <th> Fish </th>
+  <th> PowerShell </th>
+</tr>
+<tr>
+<td>
+
+```bash
+export EDITOR=vim
+```
+
+</td>
+<td>
+
+```fish
+set -gx EDITOR vim
+```
+
+</td>
+<td>
+
+```powershell
+$env:EDITOR = "vim"
+```
+
+</td>
+</tr>
+</table>
+
+### Key Bindings
+Key bindings can be configured via json. By default, llama will search for a configuration file at `~\.config\llama\config.json` where `~` is the user's home directory, but this may be overridden using the `LLAMA_CONFIG` environment variable.
+
+For example:
+```json5
+{
+  "bindings": [
+    // {
+    //   action   : string
+    //   keys     : string[]
+    //   disabled : boolean
+    //   help     : { key : string, desc: string }
+    // }
+    {
+      "action": "keyQuit",
+      "keys": [ "q", "tab" ],  // Bind keyQuit to activate with 'q' or 'tab' instead of `esc`
+    },
+    {
+      "action": "keyDelete",
+      "disabled": true         // Disable the keyDelete action
+    }
+  ]
+}
+```
+
+Note that the `action` property must match one of the following actions, and that the configurations provided to the action will fully override the default configuration for that action. All actions are enabled by default.
+| Action       | Default     |
+| ------------ | ----------- |
+| keyForceQuit | ctrl+c      |
+| keyQuit      | esc         |
+| keyOpen      | enter       |
+| keyBack      | backspace   |
+| keyUp        | up          |
+| keyDown      | down        |
+| keyLeft      | left        |
+| keyRight     | right       |
+| keyTop       | shift+up    |
+| keyBottom    | shift+down  |
+| keyLeftmost  | shift+left  |
+| keyRightmost | shift+right |
+| keyVimUp     | k           |
+| keyVimDown   | j           |
+| keyVimLeft   | h           |
+| keyVimRight  | l           |
+| keyVimTop    | g           |
+| keyVimBottom | G           |
+| keySearch    | /           |
+| keyPreview   | space       |
+| keyDelete    | d           |
+| keyUndo      | u           |
 
 ## License
 
