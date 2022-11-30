@@ -76,8 +76,8 @@ func processConfig() {
 
 func getConfigPath() string {
 	// Try to resolve path from environment variable
-	value, ok := os.LookupEnv("LLAMA_CONFIG")
-	if ok && value != "" {
+	value := lookup("LLAMA_CONFIG", "")
+	if value != "" {
 		return value
 	}
 
