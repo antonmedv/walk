@@ -181,30 +181,32 @@ For example:
 ```
 
 Note that the `action` property must match one of the following actions, and that the configurations provided to the action will fully override the default configuration for that action. All actions are enabled by default.
-| Action       | Default     |
-| ------------ | ----------- |
-| keyForceQuit | ctrl+c      |
-| keyQuit      | esc         |
-| keyOpen      | enter       |
-| keyBack      | backspace   |
-| keyUp        | up          |
-| keyDown      | down        |
-| keyLeft      | left        |
-| keyRight     | right       |
-| keyTop       | shift+up    |
-| keyBottom    | shift+down  |
-| keyLeftmost  | shift+left  |
-| keyRightmost | shift+right |
-| keyVimUp     | k           |
-| keyVimDown   | j           |
-| keyVimLeft   | h           |
-| keyVimRight  | l           |
-| keyVimTop    | g           |
-| keyVimBottom | G           |
-| keySearch    | /           |
-| keyPreview   | space       |
-| keyDelete    | d           |
-| keyUndo      | u           |
+| Action       | Default                  |
+| ------------ | ------------------------ |
+| keyForceQuit | ctrl+c                   |
+| keyQuit      | esc                      |
+| keyOpen      | enter                    |
+| keyBack      | backspace                |
+| keyUp        | up                       |
+| keyDown      | down                     |
+| keyLeft      | left                     |
+| keyRight     | right                    |
+| keyTop       | shift+up <br/> pgup      |
+| keyBottom    | shift+down <br/> pgdown  |
+| keyLeftmost  | shift+left               |
+| keyRightmost | shift+right              |
+| keyHome      | home                     |
+| keyEnd       | end                      |
+| keyVimUp     | k                        |
+| keyVimDown   | j                        |
+| keyVimLeft   | h                        |
+| keyVimRight  | l                        |
+| keyVimTop    | g                        |
+| keyVimBottom | G                        |
+| keySearch    | /                        |
+| keyPreview   | space                    |
+| keyDelete    | d                        |
+| keyUndo      | u                        |
 
 ## License
 
