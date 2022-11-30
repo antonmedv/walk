@@ -34,6 +34,8 @@ var (
 		"keyBottom":    &keyBottom,
 		"keyLeftmost":  &keyLeftmost,
 		"keyRightmost": &keyRightmost,
+		"keyHome":      &keyHome,
+		"keyEnd":       &keyEnd,
 		"keyVimUp":     &keyVimUp,
 		"keyVimDown":   &keyVimDown,
 		"keyVimLeft":   &keyVimLeft,
