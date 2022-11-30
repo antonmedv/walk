@@ -719,13 +719,11 @@ func (m *model) preview() {
 		return
 	}
 
-	file, err := os.Open(filePath)
-	defer file.Close()
+	content, err := readContent(filePath)
 	if err != nil {
-		m.previewContent = err.Error()
-		return
-	}
-	content, _ := io.ReadAll(file)
+        m.previewContent = err.Error()
+        return
+    }
 
 	switch {
 	case utf8.Valid(content):
@@ -733,6 +731,26 @@ func (m *model) preview() {
 	default:
 		m.previewContent = warning.Render("No preview available")
 	}
+}
+
+func readContent(file string) ([]byte, error) {
+    f, err := os.Open(file)
+    if err != nil {
+        return nil, err
+    }
+    defer f.Close()
+    buf := make([]byte, 1024)
+    for {
+        _, err := f.Read(buf)
+        if err == io.EOF {
+            break
+        }
+        if err != nil {
+            continue
+        }
+    }
+
+    return buf, nil
 }
 
 func (m *model) performPendingDeletions() {
