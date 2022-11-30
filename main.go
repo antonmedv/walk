@@ -722,7 +722,7 @@ func (m *model) openEditor() tea.Cmd {
 		return nil
 	}
 
-	cmdline := Split(lookup([]string{"LLAMA_EDITOR", "EDITOR"}, "less"), " ")
+	cmdline := Split(lookupFirst([]string{"LLAMA_EDITOR", "EDITOR"}, "less"), " ")
 	cmdline = append(cmdline, filePath)
 
 	execCmd := exec.Command(cmdline[0], cmdline[1:]...)
@@ -800,14 +800,22 @@ func fileInfo(path string) os.FileInfo {
 	return fi
 }
 
-func lookup(names []string, val string) string {
+func lookup(name string, defaultValue string) string {
+	value, ok := os.LookupEnv(name)
+	if ok && value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+func lookupFirst(names []string, defaultValue string) string {
 	for _, name := range names {
-		val, ok := os.LookupEnv(name)
-		if ok && val != "" {
-			return val
+		value := lookup(name, "")
+		if value != "" {
+			return value
 		}
 	}
-	return val
+	return defaultValue
 }
 
 func usage() {
