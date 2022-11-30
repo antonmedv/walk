@@ -45,6 +45,10 @@ var (
 	keyBottom    = key.NewBinding(key.WithKeys("shift+down"))
 	keyLeftmost  = key.NewBinding(key.WithKeys("shift+left"))
 	keyRightmost = key.NewBinding(key.WithKeys("shift+right"))
+	keyPageUp    = key.NewBinding(key.WithKeys("pgup"))
+	keyPageDown  = key.NewBinding(key.WithKeys("pgdown"))
+	keyHome      = key.NewBinding(key.WithKeys("home"))
+	keyEnd       = key.NewBinding(key.WithKeys("end"))
 	keyVimUp     = key.NewBinding(key.WithKeys("k"))
 	keyVimDown   = key.NewBinding(key.WithKeys("j"))
 	keyVimLeft   = key.NewBinding(key.WithKeys("h"))
@@ -246,10 +250,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keyUp):
 			m.moveUp()
 
-		case key.Matches(msg, keyTop, keyVimTop):
+		case key.Matches(msg, keyTop, keyPageUp, keyVimTop):
 			m.moveTop()
 
-		case key.Matches(msg, keyBottom, keyVimBottom):
+		case key.Matches(msg, keyBottom, keyPageDown, keyVimBottom):
 			m.moveBottom()
 
 		case key.Matches(msg, keyLeftmost):
@@ -257,6 +261,12 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, keyRightmost):
 			m.moveRightmost()
+
+		case key.Matches(msg, keyHome):
+			m.moveStart()
+
+		case key.Matches(msg, keyEnd):
+			m.moveEnd()
 
 		case key.Matches(msg, keyVimUp):
 			if !m.searchMode {
@@ -593,6 +603,16 @@ func (m *model) moveRightmost() {
 		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
 		m.c = m.columns - 1
 	}
+}
+
+func (m *model) moveStart() {
+	m.moveLeftmost()
+	m.moveTop()
+}
+
+func (m *model) moveEnd() {
+	m.moveRightmost()
+	m.moveBottom()
 }
 
 func (m *model) list() {
