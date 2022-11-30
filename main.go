@@ -43,12 +43,10 @@ var (
 	keyDown      = key.NewBinding(key.WithKeys("down"))
 	keyLeft      = key.NewBinding(key.WithKeys("left"))
 	keyRight     = key.NewBinding(key.WithKeys("right"))
-	keyTop       = key.NewBinding(key.WithKeys("shift+up"))
-	keyBottom    = key.NewBinding(key.WithKeys("shift+down"))
+	keyTop       = key.NewBinding(key.WithKeys("shift+up", "pgup"))
+	keyBottom    = key.NewBinding(key.WithKeys("shift+down", "pgdown"))
 	keyLeftmost  = key.NewBinding(key.WithKeys("shift+left"))
 	keyRightmost = key.NewBinding(key.WithKeys("shift+right"))
-	keyPageUp    = key.NewBinding(key.WithKeys("pgup"))
-	keyPageDown  = key.NewBinding(key.WithKeys("pgdown"))
 	keyHome      = key.NewBinding(key.WithKeys("home"))
 	keyEnd       = key.NewBinding(key.WithKeys("end"))
 	keyVimUp     = key.NewBinding(key.WithKeys("k"))
@@ -262,10 +260,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keyUp):
 			m.moveUp()
 
-		case key.Matches(msg, keyTop, keyPageUp, keyVimTop):
+		case key.Matches(msg, keyTop, keyVimTop):
 			m.moveTop()
 
-		case key.Matches(msg, keyBottom, keyPageDown, keyVimBottom):
+		case key.Matches(msg, keyBottom, keyVimBottom):
 			m.moveBottom()
 
 		case key.Matches(msg, keyLeftmost):
