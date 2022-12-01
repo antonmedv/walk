@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	. "strings"
 	"text/tabwriter"
 	"time"
@@ -24,12 +25,13 @@ import (
 var Version = "v1.2.0"
 
 var (
-	warning = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
-	preview = lipgloss.NewStyle().PaddingLeft(2)
-	cursor  = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
-	bar     = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
-	search  = lipgloss.NewStyle().Background(lipgloss.Color("#499F1C")).Foreground(lipgloss.Color("#FFFFFF"))
-	danger  = lipgloss.NewStyle().Background(lipgloss.Color("#FF0000")).Foreground(lipgloss.Color("#FFFFFF"))
+	warning       = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
+	preview       = lipgloss.NewStyle().PaddingLeft(2)
+	cursor        = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
+	bar           = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
+	search        = lipgloss.NewStyle().Background(lipgloss.Color("#499F1C")).Foreground(lipgloss.Color("#FFFFFF"))
+	danger        = lipgloss.NewStyle().Background(lipgloss.Color("#FF0000")).Foreground(lipgloss.Color("#FFFFFF"))
+	fileSeparator = string(filepath.Separator)
 )
 
 var (
@@ -416,7 +418,7 @@ start:
 				}
 				if m.files[n].IsDir() {
 					// Dirs should have a slash at the end.
-					name += "/"
+					name += fileSeparator
 				}
 				n++
 			}
@@ -494,11 +496,15 @@ start:
 	if userHomeDir, err := os.UserHomeDir(); err == nil {
 		location = Replace(m.path, userHomeDir, "~", 1)
 	}
+	if runtime.GOOS == "windows" {
+		location = ReplaceAll(Replace(location, "\\/", fileSeparator, 1), "/", fileSeparator)
+	}
 
 	// Filter bar (green).
 	filter := ""
 	if m.searchMode {
-		filter = "/" + m.search
+		location = TrimSuffix(location, fileSeparator)
+		filter = fileSeparator + m.search
 	}
 	barLen := len(location) + len(filter)
 	if barLen > outputWidth {
