@@ -1,0 +1,102 @@
+.\" Copyright (c) 2022 Omar Polo <op@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.Dd November 23, 2022
+.Dt LLAMA 1
+.Os
+.Sh NAME
+.Nm llama
+.Nd terminal file manager
+.Sh SYNOPSIS
+.Nm
+.Bk -words
+.Op Fl -help
+.Op Ar path
+.Ek
+.Sh DESCRIPTION
+.Nm
+is an interactive file manager.
+It shows the files in the current directory, or in the
+.Ar path
+given as argument, and allows to navigate the file system optionally
+showing file previews.
+Attempting to
+.Dq enter
+a file will spawn an editor.
+Upon exit it prints the current path so that it possible to use
+.Nm
+to change the shell' current directory interactively.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl -help
+Show usage and exit.
+.El
+.Pp
+The key bindings are:
+.Pp
+.Bl -tag -width 14m -compact
+.It Cm Arrows , Cm hjkl
+Move the cursor.
+.It Cm Shift+Arrows
+Move to the last entry in the given direction.
+.It Cm g
+Move to the first entry.
+.It Cm G
+Move to the last entry.
+.It Cm Space
+Toggle file preview.
+.It Cm /
+Fuzzy search.
+.It Cm dd
+Delete selected file.
+.It Cm u
+Undo delete.
+.It Cm Enter
+Enter directory or edit file.
+.It Cm Backspace
+Exit directory.
+.It Cm Esc
+Exit printing the current path.
+.It Cm Ctrl+c
+Exit without printing the current path.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It Ev LLAMA_EDITOR , Ev EDITOR
+Path to the program executed when opening files.
+.Xr less 1
+is used as fallback if both variables are undefined.
+.El
+.Sh EXAMPLES
+Use
+.Nm
+to change the current working directory of the shell interactively:
+.Bd -literal -offset indent
+ll() {
+	cd "$(llama "$@")"
+}
+.Ed
+.Sh SEE ALSO
+.Xr less 1
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+program was written by
+.An Anton Medvedev .
+This manual page was written by
+.An Omar Polo Aq op@openbsd.org
+for the
+.Ox
+port.
