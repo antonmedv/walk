@@ -47,6 +47,10 @@ var (
 	keyBottom    = key.NewBinding(key.WithKeys("shift+down"))
 	keyLeftmost  = key.NewBinding(key.WithKeys("shift+left"))
 	keyRightmost = key.NewBinding(key.WithKeys("shift+right"))
+	keyPageUp    = key.NewBinding(key.WithKeys("pgup"))
+	keyPageDown  = key.NewBinding(key.WithKeys("pgdown"))
+	keyHome      = key.NewBinding(key.WithKeys("home"))
+	keyEnd       = key.NewBinding(key.WithKeys("end"))
 	keyVimUp     = key.NewBinding(key.WithKeys("k"))
 	keyVimDown   = key.NewBinding(key.WithKeys("j"))
 	keyVimLeft   = key.NewBinding(key.WithKeys("h"))
@@ -248,10 +252,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keyUp):
 			m.moveUp()
 
-		case key.Matches(msg, keyTop, keyVimTop):
+		case key.Matches(msg, keyTop, keyPageUp, keyVimTop):
 			m.moveTop()
 
-		case key.Matches(msg, keyBottom, keyVimBottom):
+		case key.Matches(msg, keyBottom, keyPageDown, keyVimBottom):
 			m.moveBottom()
 
 		case key.Matches(msg, keyLeftmost):
@@ -259,6 +263,12 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, keyRightmost):
 			m.moveRightmost()
+
+		case key.Matches(msg, keyHome):
+			m.moveStart()
+
+		case key.Matches(msg, keyEnd):
+			m.moveEnd()
 
 		case key.Matches(msg, keyVimUp):
 			if !m.searchMode {
@@ -601,6 +611,16 @@ func (m *model) moveRightmost() {
 	}
 }
 
+func (m *model) moveStart() {
+	m.moveLeftmost()
+	m.moveTop()
+}
+
+func (m *model) moveEnd() {
+	m.moveRightmost()
+	m.moveBottom()
+}
+
 func (m *model) list() {
 	var err error
 	m.files = nil
@@ -705,13 +725,11 @@ func (m *model) preview() {
 		return
 	}
 
-	file, err := os.Open(filePath)
-	defer file.Close()
+	content, err := readContent(filePath)
 	if err != nil {
-		m.previewContent = err.Error()
-		return
-	}
-	content, _ := io.ReadAll(file)
+        m.previewContent = err.Error()
+        return
+    }
 
 	switch {
 	case utf8.Valid(content):
@@ -719,6 +737,26 @@ func (m *model) preview() {
 	default:
 		m.previewContent = warning.Render("No preview available")
 	}
+}
+
+func readContent(file string) ([]byte, error) {
+    f, err := os.Open(file)
+    if err != nil {
+        return nil, err
+    }
+    defer f.Close()
+    buf := make([]byte, 1024)
+    for {
+        _, err := f.Read(buf)
+        if err == io.EOF {
+            break
+        }
+        if err != nil {
+            continue
+        }
+    }
+
+    return buf, nil
 }
 
 func (m *model) performPendingDeletions() {
