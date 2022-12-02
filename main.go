@@ -61,6 +61,7 @@ var (
 	keyPreview   = key.NewBinding(key.WithKeys(" "))
 	keyDelete    = key.NewBinding(key.WithKeys("d"))
 	keyUndo      = key.NewBinding(key.WithKeys("u"))
+	keyGoHome    = key.NewBinding(key.WithKeys("~"))
 )
 
 func main() {
@@ -218,20 +219,15 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if fi := fileInfo(filePath); fi.IsDir() {
 				// Enter subdirectory.
-				m.path = filePath
-				if p, ok := m.positions[m.path]; ok {
-					m.c = p.c
-					m.r = p.r
-					m.offset = p.offset
-				} else {
-					m.c = 0
-					m.r = 0
-					m.offset = 0
-				}
-				m.list()
+				m.enterDir(filePath)
 			} else {
 				// Open file. This will block until complete.
 				return m, m.openEditor()
+			}
+		case key.Matches(msg, keyGoHome):
+			// error handle ?
+			if userHomeDir, err := os.UserHomeDir(); err == nil {
+				m.enterDir(userHomeDir)
 			}
 
 		case key.Matches(msg, keyBack):
@@ -382,6 +378,20 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m *model) enterDir(filePath string) {
+	m.path = filePath
+	if p, ok := m.positions[m.path]; ok {
+		m.c = p.c
+		m.r = p.r
+		m.offset = p.offset
+	} else {
+		m.c = 0
+		m.r = 0
+		m.offset = 0
+	}
+	m.list()
 }
 
 func (m *model) View() string {
