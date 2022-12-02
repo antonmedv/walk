@@ -225,6 +225,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.openEditor()
 			}
 		case key.Matches(msg, keyGoHome):
+			m.searchMode = false
 			// error handle ?
 			if userHomeDir, err := os.UserHomeDir(); err == nil {
 				m.enterDir(userHomeDir)
