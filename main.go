@@ -15,6 +15,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -36,17 +37,17 @@ var (
 
 var (
 	keyForceQuit = key.NewBinding(key.WithKeys("ctrl+c"))
-	keyQuit      = key.NewBinding(key.WithKeys("esc"))
-	keyOpen      = key.NewBinding(key.WithKeys("enter"))
-	keyBack      = key.NewBinding(key.WithKeys("backspace"))
-	keyUp        = key.NewBinding(key.WithKeys("up"))
-	keyDown      = key.NewBinding(key.WithKeys("down"))
-	keyLeft      = key.NewBinding(key.WithKeys("left"))
-	keyRight     = key.NewBinding(key.WithKeys("right"))
-	keyTop       = key.NewBinding(key.WithKeys("shift+up"))
-	keyBottom    = key.NewBinding(key.WithKeys("shift+down"))
-	keyLeftmost  = key.NewBinding(key.WithKeys("shift+left"))
-	keyRightmost = key.NewBinding(key.WithKeys("shift+right"))
+	keyQuit      = key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "quit"))
+	keyOpen      = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open item"))
+	keyBack      = key.NewBinding(key.WithKeys("backspace"), key.WithHelp("backspace", "go back"))
+	keyUp        = key.NewBinding(key.WithKeys("up"), key.WithHelp("↑/k", "move up"))
+	keyDown      = key.NewBinding(key.WithKeys("down"), key.WithHelp("↓/j", "move down"))
+	keyLeft      = key.NewBinding(key.WithKeys("left"), key.WithHelp("←/h", "move left"))
+	keyRight     = key.NewBinding(key.WithKeys("right"), key.WithHelp("→/l", "move right"))
+	keyTop       = key.NewBinding(key.WithKeys("shift+up"), key.WithHelp("shift ↑", "move top"))
+	keyBottom    = key.NewBinding(key.WithKeys("shift+down"), key.WithHelp("shift ↓", "move bottom"))
+	keyLeftmost  = key.NewBinding(key.WithKeys("shift+left"), key.WithHelp("shift ←", "move leftmost"))
+	keyRightmost = key.NewBinding(key.WithKeys("shift+right"), key.WithHelp("shift →", "move rightmost"))
 	keyPageUp    = key.NewBinding(key.WithKeys("pgup"))
 	keyPageDown  = key.NewBinding(key.WithKeys("pgdown"))
 	keyHome      = key.NewBinding(key.WithKeys("home"))
@@ -57,10 +58,11 @@ var (
 	keyVimRight  = key.NewBinding(key.WithKeys("l"))
 	keyVimTop    = key.NewBinding(key.WithKeys("g"))
 	keyVimBottom = key.NewBinding(key.WithKeys("G"))
-	keySearch    = key.NewBinding(key.WithKeys("/"))
-	keyPreview   = key.NewBinding(key.WithKeys(" "))
-	keyDelete    = key.NewBinding(key.WithKeys("d"))
-	keyUndo      = key.NewBinding(key.WithKeys("u"))
+	keySearch    = key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "fuzzy jump"))
+	keyPreview   = key.NewBinding(key.WithKeys(" "), key.WithHelp("space", "preview file"))
+	keyDelete    = key.NewBinding(key.WithKeys("d"), key.WithHelp("dd", "delete file"))
+	keyUndo      = key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "undo"))
+	keyHelp      = key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "toggle help"))
 )
 
 func main() {
@@ -93,6 +95,7 @@ func main() {
 		width:     80,
 		height:    60,
 		positions: make(map[string]position),
+		help:      help.New(),
 	}
 	m.list()
 
@@ -122,6 +125,7 @@ type model struct {
 	previewContent    string              // Content of preview.
 	deleteCurrentFile bool                // Whether to delete current file.
 	toBeDeleted       []toDelete          // Map of files to be deleted.
+	help              help.Model          // Keybindings help model
 }
 
 type position struct {
@@ -148,6 +152,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.help.Width = msg.Width
 		// Reset position history as c&r changes.
 		m.positions = make(map[string]position)
 		// Keep cursor at same place.
@@ -197,6 +202,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		switch {
+		case key.Matches(msg, keyHelp):
+			m.help.ShowAll = !m.help.ShowAll
+
 		case key.Matches(msg, keyForceQuit):
 			_, _ = fmt.Fprintln(os.Stderr) // Keep last item visible after prompt.
 			m.exitCode = 2
@@ -525,6 +533,10 @@ start:
 		deleteBar := fmt.Sprintf("%v deleted. (u)ndo %v", path.Base(toDelete.path), timeLeft)
 		main += "\n" + danger.Render(deleteBar)
 	}
+
+	helpView := m.help.View(&HelpKeymap)
+	helpHeight := 6 - Count(helpView, "\n")
+	main += Repeat("\n", helpHeight) + helpView
 
 	if m.previewMode {
 		return lipgloss.JoinHorizontal(
