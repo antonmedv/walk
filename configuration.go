@@ -40,8 +40,6 @@ var (
 		"keyVimDown":   &keyVimDown,
 		"keyVimLeft":   &keyVimLeft,
 		"keyVimRight":  &keyVimRight,
-		"keyVimTop":    &keyVimTop,
-		"keyVimBottom": &keyVimBottom,
 		"keySearch":    &keySearch,
 		"keyPreview":   &keyPreview,
 		"keyDelete":    &keyDelete,
