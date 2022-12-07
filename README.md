@@ -56,7 +56,7 @@ function ll {
 
 ```fish
 function ll
-  cd (llama $argv);
+  set location (llama $argv); and cd $location;
 end
 ```
 
