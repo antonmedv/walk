@@ -1,20 +1,28 @@
 name: llama
-version: v1.2.0
-summary: Terminal JSON viewer
-description: Terminal JSON viewer
-base: core18
+adopt-info: llama
+summary: A terminal file manager
+description: | 
+  Why another file manager? I wanted something simple and minimalistic. Something to help me with faster navigation in the filesystem; 
+  a cd and ls replacement. So I build "llama". It allows for quick navigation with fuzzy searching. cd integration is quite simple. 
+  And you can open vim right from the llama. That's it. As simple and dumb as a llama.
+  
+base: core20
 grade: stable
 confinement: strict
+license: MIT
 
 apps:
   llama:
-    command: llama
+    command: bin/llama
     plugs: [home, network]
 
 parts:
   llama:
     plugin: go
     go-channel: 1.18/stable
-    source: .
+    source: https://github.com/antonmedv/llama
     source-type: git
-    go-importpath: github.com/antonmedv/llama
+    
+    override-pull: |
+      snapcraftctl pull
+      snapcraftctl set-version "$(git describe --tags | sed 's/^v//')"
