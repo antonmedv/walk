@@ -57,6 +57,9 @@ var (
 	keyVimRight  = key.NewBinding(key.WithKeys("l"))
 	keyVimTop    = key.NewBinding(key.WithKeys("g"))
 	keyVimBottom = key.NewBinding(key.WithKeys("G"))
+	keyVimBack   = key.NewBinding(key.WithKeys("u"))
+	keyVimOpen   = key.NewBinding(key.WithKeys("o"))
+	keyVimQuit   = key.NewBinding(key.WithKeys("q"))
 	keySearch    = key.NewBinding(key.WithKeys("/"))
 	keyPreview   = key.NewBinding(key.WithKeys(" "))
 	keyDelete    = key.NewBinding(key.WithKeys("d"))
@@ -166,7 +169,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if key.Matches(msg, keySearch) {
 				m.searchMode = false
 				return m, nil
-			} else if key.Matches(msg, keyBack) {
+			} else if key.Matches(msg, keyBack, keyVimBack) {
 				if len(m.search) > 0 {
 					m.search = m.search[:len(m.search)-1]
 					return m, nil
@@ -203,14 +206,14 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.performPendingDeletions()
 			return m, tea.Quit
 
-		case key.Matches(msg, keyQuit):
+		case key.Matches(msg, keyQuit, keyVimQuit):
 			_, _ = fmt.Fprintln(os.Stderr) // Keep last item visible after prompt.
 			fmt.Println(m.path)            // Write to cd.
 			m.exitCode = 0
 			m.performPendingDeletions()
 			return m, tea.Quit
 
-		case key.Matches(msg, keyOpen):
+		case key.Matches(msg, keyOpen, keyVimOpen):
 			m.searchMode = false
 			filePath, ok := m.filePath()
 			if !ok {
@@ -234,7 +237,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.openEditor()
 			}
 
-		case key.Matches(msg, keyBack):
+		case key.Matches(msg, keyBack, keyVimBack):
 			m.searchMode = false
 			m.prevName = filepath.Base(m.path)
 			m.path = filepath.Join(m.path, "..")
