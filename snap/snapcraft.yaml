@@ -1,20 +1,26 @@
 name: llama
-version: v1.2.0
+name: llama
+adopt-info: llama
 summary: Terminal JSON viewer
 description: Terminal JSON viewer
-base: core18
+base: core20
 grade: stable
 confinement: strict
+license: MIT
 
 apps:
   llama:
-    command: llama
+    command: bin/llama
     plugs: [home, network]
 
 parts:
   llama:
     plugin: go
     go-channel: 1.18/stable
-    source: .
+    source: https://github.com/antonmedv/llama
     source-type: git
     go-importpath: github.com/antonmedv/llama
+    
+    override-pull: |
+      snapcraftctl pull
+      snapcraftctl set-version "$(git describe --tags | sed 's/^v//')"
