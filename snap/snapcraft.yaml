@@ -19,7 +19,6 @@ parts:
     go-channel: 1.18/stable
     source: https://github.com/antonmedv/llama
     source-type: git
-    go-importpath: github.com/antonmedv/llama
     
     override-pull: |
       snapcraftctl pull
