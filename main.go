@@ -22,7 +22,7 @@ import (
 	"github.com/sahilm/fuzzy"
 )
 
-var Version = "v1.3.0"
+var Version = "v1.4.0"
 
 var (
 	warning       = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
