@@ -404,6 +404,9 @@ start:
 	m.rows = int(math.Ceil(float64(len(m.files)) / float64(m.columns)))
 	names := make([][]string, m.columns)
 	n := 0
+
+	icons := parseIcons()
+
 	for i := 0; i < m.columns; i++ {
 		names[i] = make([]string, m.rows)
 		// Columns size is going to be of max file name size.
@@ -411,7 +414,14 @@ start:
 		for j := 0; j < m.rows; j++ {
 			name := ""
 			if n < len(m.files) {
-				name = m.files[n].Name()
+				info, err := m.files[n].Info()
+				if err == nil {
+					icon := icons.getIcon(info)
+					if icon != "" {
+						name += icon + " "
+					}
+				}
+				name += m.files[n].Name()
 				if m.findPrevName && m.prevName == name {
 					m.c = i
 					m.r = j
@@ -425,6 +435,7 @@ start:
 			if max < len(name) {
 				max = len(name)
 			}
+
 			names[i][j] = name
 		}
 		// Append spaces to make all names in one column of same size.
