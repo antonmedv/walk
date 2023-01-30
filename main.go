@@ -69,16 +69,21 @@ func main() {
 		panic(err)
 	}
 
-	if len(os.Args) == 2 {
-		if os.Args[1] == "--help" || os.Args[1] == "-h" {
+	showIcons := false
+	for i := 1; i < len(os.Args); i++ {
+		if os.Args[i] == "--help" || os.Args[1] == "-h" {
 			usage()
 		}
 
-		if os.Args[1] == "--version" || os.Args[1] == "-v" {
+		if os.Args[i] == "--version" || os.Args[1] == "-v" {
 			version()
 		}
 
-		// Maybe it is and argument, so get absolute path.
+		if os.Args[i] == "--icons" {
+			showIcons = true
+			continue
+		}
+
 		startPath, err = filepath.Abs(os.Args[1])
 		if err != nil {
 			panic(err)
@@ -93,6 +98,7 @@ func main() {
 		width:     80,
 		height:    60,
 		positions: make(map[string]position),
+		showIcons: showIcons,
 	}
 	m.list()
 
@@ -122,6 +128,7 @@ type model struct {
 	previewContent    string              // Content of preview.
 	deleteCurrentFile bool                // Whether to delete current file.
 	toBeDeleted       []toDelete          // Map of files to be deleted.
+	showIcons         bool                // Whether to show icons or not
 }
 
 type position struct {
@@ -405,7 +412,10 @@ start:
 	names := make([][]string, m.columns)
 	n := 0
 
-	icons := parseIcons()
+	var icons iconMap
+	if m.showIcons {
+		icons = parseIcons()
+	}
 
 	for i := 0; i < m.columns; i++ {
 		names[i] = make([]string, m.rows)
@@ -414,11 +424,13 @@ start:
 		for j := 0; j < m.rows; j++ {
 			name := ""
 			if n < len(m.files) {
-				info, err := m.files[n].Info()
-				if err == nil {
-					icon := icons.getIcon(info)
-					if icon != "" {
-						name += icon + " "
+				if m.showIcons {
+					info, err := m.files[n].Info()
+					if err == nil {
+						icon := icons.getIcon(info)
+						if icon != "" {
+							name += icon + " "
+						}
 					}
 				}
 				name += m.files[n].Name()
@@ -809,6 +821,8 @@ func usage() {
 	put("    Ctrl+C\tExit without cd")
 	put("    /\tFuzzy search")
 	put("    dd\tDelete file or dir")
+	put("\n  Flags:\n")
+	put("    --icons\tdisplay icons")
 	_ = w.Flush()
 	_, _ = fmt.Fprintf(os.Stderr, "\n")
 	os.Exit(1)
