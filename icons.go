@@ -44,14 +44,41 @@ func (im iconMap) parseFile() {
 }
 
 func (im iconMap) getIcon(f os.FileInfo) string {
-	// if val, ok := im[f.path]; ok {
-	// 	return val
-	// }
-
 	if f.IsDir() {
 		if val, ok := im[f.Name()+"/"]; ok {
 			return val
 		}
+	}
+
+	var key string
+
+	switch {
+	case f.IsDir() && f.Mode()&os.ModeSticky != 0 && f.Mode()&0002 != 0:
+		key = "tw"
+	case f.IsDir() && f.Mode()&0002 != 0:
+		key = "ow"
+	case f.IsDir() && f.Mode()&os.ModeSticky != 0:
+		key = "st"
+	case f.IsDir():
+		key = "di"
+	case f.Mode()&os.ModeNamedPipe != 0:
+		key = "pi"
+	case f.Mode()&os.ModeSocket != 0:
+		key = "so"
+	case f.Mode()&os.ModeDevice != 0:
+		key = "bd"
+	case f.Mode()&os.ModeCharDevice != 0:
+		key = "cd"
+	case f.Mode()&os.ModeSetuid != 0:
+		key = "su"
+	case f.Mode()&os.ModeSetgid != 0:
+		key = "sg"
+	case f.Mode()&0111 != 0:
+		key = "ex"
+	}
+
+	if val, ok := im[key]; ok {
+		return val
 	}
 
 	if val, ok := im[f.Name()+"*"]; ok {
