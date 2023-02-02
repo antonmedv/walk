@@ -38,14 +38,16 @@ Put the next function into the **.bashrc** or a similar config:
 
 <table>
 <tr>
-  <th> Bash </th>
+  <th> Bash/zsh </th>
   <th> Fish </th>
 </tr>
 <tr>
 <td>
 
 ```bash
-function ll {
+alias ll && unalias ll # 'll' is often aliased to 'ls -l' - this will unalias it if so
+
+ll() {
   cd "$(llama "$@")"
 }
 ```
