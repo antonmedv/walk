@@ -110,6 +110,15 @@ Delete file or directory:
 
 <img src=".github/images/rm-demo.gif" width="600" alt="Llama Deletes a File">
 
+## Command-line options
+
+* `--icons`: display icons
+
+  To get the icons to render properly you should download and install a Nerd font from https://www.nerdfonts.com/.
+
+  Then, select that font as your font for the terminal.
+
+  <img src=".github/images/demo-icons.gif" width="600" alt="Llama Icons Support">
 
 ## License
 
