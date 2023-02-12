@@ -38,6 +38,7 @@ var (
 	keyForceQuit = key.NewBinding(key.WithKeys("ctrl+c"))
 	keyQuit      = key.NewBinding(key.WithKeys("esc"))
 	keyOpen      = key.NewBinding(key.WithKeys("enter"))
+	keyOpenQuit  = key.NewBinding(key.WithKeys("o"))
 	keyBack      = key.NewBinding(key.WithKeys("backspace"))
 	keyUp        = key.NewBinding(key.WithKeys("up"))
 	keyDown      = key.NewBinding(key.WithKeys("down"))
@@ -213,6 +214,17 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keyQuit):
 			_, _ = fmt.Fprintln(os.Stderr) // Keep last item visible after prompt.
 			fmt.Println(m.path)            // Write to cd.
+			m.exitCode = 0
+			m.performPendingDeletions()
+			return m, tea.Quit
+
+		case key.Matches(msg, keyOpenQuit):
+			_, _ = fmt.Fprintln(os.Stderr)
+			filePath, ok := m.filePath()
+			if !ok {
+				return m, nil
+			}
+			fmt.Println(filePath) // Write to cd.
 			m.exitCode = 0
 			m.performPendingDeletions()
 			return m, tea.Quit
@@ -819,6 +831,7 @@ func usage() {
 	put("    Space\tToggle preview")
 	put("    Esc\tExit with cd")
 	put("    Ctrl+C\tExit without cd")
+	put("    o\tSelect with cd")
 	put("    /\tFuzzy search")
 	put("    dd\tDelete file or dir")
 	put("\n  Flags:\n")

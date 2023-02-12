@@ -92,6 +92,7 @@ directory of the parent process.
 | `Space`          | Toggle preview     |
 | `Esc`            | Exit with cd       |
 | `Ctrl+C`         | Exit without cd    |
+| `o`              | Select with cd     |
 | `/`              | Fuzzy search       |
 | `dd`             | Delete file or dir |
 
