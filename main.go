@@ -651,6 +651,10 @@ func (m *model) list() {
 	// ReadDir already returns files and dirs sorted by filename.
 	files, err := os.ReadDir(m.path)
 	if err != nil {
+		// Exit early if reading is not allowed, no need to panic, just display no files
+		if os.IsPermission(err) {
+			return
+		}
 		panic(err)
 	}
 
