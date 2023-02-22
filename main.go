@@ -31,6 +31,7 @@ var (
 	bar           = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
 	search        = lipgloss.NewStyle().Background(lipgloss.Color("#499F1C")).Foreground(lipgloss.Color("#FFFFFF"))
 	danger        = lipgloss.NewStyle().Background(lipgloss.Color("#FF0000")).Foreground(lipgloss.Color("#FFFFFF"))
+	errMsg        = lipgloss.NewStyle().Background(lipgloss.Color("#FFA500")).Foreground(lipgloss.Color("#FFFFFF"))
 	fileSeparator = string(filepath.Separator)
 )
 
@@ -129,6 +130,7 @@ type model struct {
 	deleteCurrentFile bool                // Whether to delete current file.
 	toBeDeleted       []toDelete          // Map of files to be deleted.
 	showIcons         bool                // Whether to show icons or not
+	errMsg            string              // Current error message.
 }
 
 type position struct {
@@ -242,6 +244,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case key.Matches(msg, keyBack):
+			m.errMsg = ""
 			m.searchMode = false
 			m.prevName = filepath.Base(m.path)
 			m.path = filepath.Join(m.path, "..")
@@ -522,6 +525,9 @@ start:
 	if runtime.GOOS == "windows" {
 		location = ReplaceAll(Replace(location, "\\/", fileSeparator, 1), "/", fileSeparator)
 	}
+	if len(m.errMsg) > 0 {
+		location += " " + errMsg.Render(m.errMsg)
+	}
 
 	// Filter bar (green).
 	filter := ""
@@ -651,8 +657,9 @@ func (m *model) list() {
 	// ReadDir already returns files and dirs sorted by filename.
 	files, err := os.ReadDir(m.path)
 	if err != nil {
-		// Exit early if reading is not allowed, no need to panic, just display no files
+		// Exit early if reading is not allowed, no need to panic, store error message to show in location bar.
 		if os.IsPermission(err) {
+			m.errMsg = "Not permitted"
 			return
 		}
 		panic(err)
