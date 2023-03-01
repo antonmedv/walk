@@ -17,6 +17,7 @@ the llama. That's it. As simple and dumb as a llama.
 ## Getting Started
 - [Installation](#install)
 - [Usage](#usage)
+- [Command Line Options](#command-line-options)
 - [Configuration](#configuration)
   - [Editor](#editor)
   - [Key Bindings](#key-bindings)
@@ -111,7 +112,7 @@ Delete file or directory:
 
 <img src=".github/images/rm-demo.gif" width="600" alt="Llama Deletes a File">
 
-## Command-line options
+## Command Line Options
 
 * `--icons`: display icons
 
