@@ -529,9 +529,19 @@ start:
 		location = TrimSuffix(location, fileSeparator)
 		filter = fileSeparator + m.search
 	}
-	barLen := len(location) + len(filter)
-	if barLen > outputWidth {
-		location = location[min(barLen-outputWidth, len(location)):]
+	if len(location)+len(filter) > outputWidth {
+		// Shorten the path to only first letters.
+		arr := Split(location, fileSeparator)
+		for i, v := range arr {
+			arr[i] = v[0:1]
+		}
+		location = Join(arr, fileSeparator)
+
+		// Trim if still too much.
+		barLen := len(location) + len(filter)
+		if barLen > outputWidth {
+			location = "..." + location[min(barLen-outputWidth, len(location))+3:]
+		}
 	}
 	bar := bar.Render(location) + search.Render(filter)
 
