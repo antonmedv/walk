@@ -112,13 +112,11 @@ Delete file or directory:
 
 ## Command-line options
 
-* `--icons`: display icons
+##### `--icons` display icons
 
-  To get the icons to render properly you should download and install a Nerd font from https://www.nerdfonts.com/.
+Install [Nerd Fonts](https://www.nerdfonts.com) to get the icons to render properly.
 
-  Then, select that font as your font for the terminal.
-
-  <img src=".github/images/demo-icons.gif" width="600" alt="Llama Icons Support">
+<img src=".github/images/demo-icons.gif" width="600" alt="Llama Icons Support">
 
 ## License
 
