@@ -646,22 +646,8 @@ func (m *model) moveEnd() {
 
 func (m *model) list() {
 	var err error
-	m.files = nil
-
-	// ReadDir already returns files and dirs sorted by filename.
-	files, err := os.ReadDir(m.path)
-	if err != nil {
+	if m.files, err = readDir(m.path, m.toBeDeleted...); err != nil {
 		panic(err)
-	}
-
-files:
-	for _, file := range files {
-		for _, toDelete := range m.toBeDeleted {
-			if path.Join(m.path, file.Name()) == toDelete.path {
-				continue files
-			}
-		}
-		m.files = append(m.files, file)
 	}
 }
 
@@ -739,21 +725,11 @@ func (m *model) preview() {
 	if !ok {
 		return
 	}
-	fileInfo, err := os.Stat(filePath)
-	if err != nil {
-		return
-	}
-	if fileInfo.IsDir() {
-		m.previewContent = ""
-		return
-	}
-
 	content, err := readContent(filePath)
 	if err != nil {
 		m.previewContent = err.Error()
 		return
 	}
-
 	switch {
 	case utf8.Valid(content):
 		m.previewContent = Replace(string(content), "\t", "    ", -1)
@@ -762,23 +738,75 @@ func (m *model) preview() {
 	}
 }
 
-func readContent(file string) ([]byte, error) {
-	f, err := os.Open(file)
+func readDir(dir string, del ...toDelete) (e []fs.DirEntry, err error) {
+	var files []fs.DirEntry
+	// ReadDir already returns files and dirs sorted by filename.
+	if files, err = os.ReadDir(dir); err == nil {
+	next:
+		for _, file := range files {
+			for _, toDelete := range del {
+				if path.Join(dir, file.Name()) == toDelete.path {
+					continue next
+				}
+			}
+			e = append(e, file)
+		}
+	}
+	return
+}
+
+func readContent(path string) (buf []byte, err error) {
+	// TODO: Can we let pageSize be user-defined (e.g., via os.Env or os.Args)?
+	const pageSize = 1024
+	info, err := os.Stat(path)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-	buf := make([]byte, 1024)
-	for {
-		_, err := f.Read(buf)
-		if err == io.EOF {
-			break
-		}
+	if info.IsDir() {
+		// TODO: Line-oriented directory preview seems like a lot of wasted space.
+		const dirEntrySep = "\n"
+		e, err := readDir(path)
 		if err != nil {
-			continue
+			return nil, err
+		}
+		var b Builder
+		b.Grow(pageSize)
+		free := pageSize
+		for i, ent := range e {
+			// Don't append anything unless there is space for the separator.
+			if i > 0 {
+				if len(dirEntrySep) > free { // len(const) => const
+					break
+				}
+				b.WriteString(dirEntrySep)
+				free -= len(dirEntrySep)
+			}
+			// Truncate the file name if there is insufficient free buffer space.
+			name := ent.Name()
+			if len(name) > free {
+				name = name[:free]
+			}
+			b.WriteString(name)
+			free -= len(name)
+		}
+		buf = []byte(b.String())
+	} else {
+		f, err := os.Open(path)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+		buf = make([]byte, pageSize)
+		for {
+			_, err := f.Read(buf)
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				continue
+			}
 		}
 	}
-
 	return buf, nil
 }
 
