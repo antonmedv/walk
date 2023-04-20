@@ -27,10 +27,10 @@ var Version = "v1.4.0"
 var (
 	warning       = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
 	preview       = lipgloss.NewStyle().PaddingLeft(2)
-	cursor        = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
-	bar           = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
-	search        = lipgloss.NewStyle().Background(lipgloss.Color("#499F1C")).Foreground(lipgloss.Color("#FFFFFF"))
-	danger        = lipgloss.NewStyle().Background(lipgloss.Color("#FF0000")).Foreground(lipgloss.Color("#FFFFFF"))
+	cursor        = lipgloss.NewStyle().Background(lipgloss.Color("4")).Foreground(lipgloss.Color("#FFFFFF"))
+	bar           = lipgloss.NewStyle().Background(lipgloss.Color("0")).Foreground(lipgloss.Color("#FFFFFF"))
+	search        = lipgloss.NewStyle().Background(lipgloss.Color("2")).Foreground(lipgloss.Color("#FFFFFF"))
+	danger        = lipgloss.NewStyle().Background(lipgloss.Color("1")).Foreground(lipgloss.Color("#FFFFFF"))
 	fileSeparator = string(filepath.Separator)
 )
 
