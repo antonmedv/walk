@@ -70,6 +70,7 @@ func main() {
 	}
 
 	showIcons := false
+	var dirOnly bool = false
 	for i := 1; i < len(os.Args); i++ {
 		if os.Args[i] == "--help" || os.Args[1] == "-h" {
 			usage()
@@ -81,6 +82,11 @@ func main() {
 
 		if os.Args[i] == "--icons" {
 			showIcons = true
+			continue
+		}
+
+		if os.Args[i] == "--dir-only" {
+			dirOnly = true
 			continue
 		}
 
@@ -99,6 +105,7 @@ func main() {
 		height:    60,
 		positions: make(map[string]position),
 		showIcons: showIcons,
+		dirOnly:   dirOnly,
 	}
 	m.list()
 
@@ -129,6 +136,7 @@ type model struct {
 	deleteCurrentFile bool                // Whether to delete current file.
 	toBeDeleted       []toDelete          // Map of files to be deleted.
 	showIcons         bool                // Whether to show icons or not
+	dirOnly           bool                // Shows directories only
 }
 
 type position struct {
@@ -656,6 +664,11 @@ func (m *model) list() {
 
 files:
 	for _, file := range files {
+		if m.dirOnly {
+			if !file.IsDir() {
+				continue
+			}
+		}
 		for _, toDelete := range m.toBeDeleted {
 			if path.Join(m.path, file.Name()) == toDelete.path {
 				continue files
@@ -822,6 +835,7 @@ func usage() {
 	put("    /\tFuzzy search")
 	put("    dd\tDelete file or dir")
 	put("\n  Flags:\n")
+	put("    --dir-only\tshow dirs only")
 	put("    --icons\tdisplay icons")
 	_ = w.Flush()
 	_, _ = fmt.Fprintf(os.Stderr, "\n")
