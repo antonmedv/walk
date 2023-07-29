@@ -111,4 +111,4 @@ jobs:
         uses: Homebrew/actions/bump-formulae@master
         with:
           token: ${{ secrets.MY_TOKEN }}
-          formulae: llama
+          formulae: walk

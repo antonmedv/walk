@@ -6,9 +6,9 @@ Set Height 600
 Set TypingSpeed 200ms
 
 Hide
-Type "cd ~/dev/llama"
+Type "cd ~/dev/walk"
 Enter
-Type "llama"
+Type "walk"
 Enter
 Space
 Type "/file"

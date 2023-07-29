@@ -1,10 +1,10 @@
-name: llama
-adopt-info: llama
+name: walk
+adopt-info: walk
 summary: A terminal file manager
 description: | 
   Why another file manager? I wanted something simple and minimalistic. Something to help me with faster navigation in the filesystem; 
-  a cd and ls replacement. So I build "llama". It allows for quick navigation with fuzzy searching. cd integration is quite simple. 
-  And you can open vim right from the llama. That's it. As simple and dumb as a llama.
+  a cd and ls replacement. So I build "walk". It allows for quick navigation with fuzzy searching. cd integration is quite simple. 
+  And you can open vim right from the walk. That's it. As simple and dumb as a walk.
   
 base: core20
 grade: stable
@@ -12,15 +12,15 @@ confinement: strict
 license: MIT
 
 apps:
-  llama:
-    command: bin/llama
+  walk:
+    command: bin/walk
     plugs: [home, network]
 
 parts:
-  llama:
+  walk:
     plugin: go
     go-channel: 1.18/stable
-    source: https://github.com/antonmedv/llama
+    source: https://github.com/antonmedv/walk
     source-type: git
     
     override-pull: |

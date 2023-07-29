@@ -1,40 +1,38 @@
-<a href="https://webpod.dev/?from=llama"><img src="https://webpod.dev/img/banner.png" alt="Webpod - deploy JavaScript apps" width="190" align="right"></a>
-
-# 🦙 llama
+# 🥾 walk
 
 <p align="center">
   <br>
-  <img src=".github/images/demo.gif" width="600" alt="Llama Demo">
+  <img src=".github/images/demo.gif" width="600" alt="walk demo">
   <br>
 </p>
 
-Llama — a terminal file manager.
+Walk — a terminal file manager.
 
 Why another file manager? I wanted something simple and minimalistic.
 Something to help me with faster navigation in the filesystem; a `cd` and `ls`
-replacement. So I build "llama". It allows for quick navigation with fuzzy
+replacement. So I build "walk". It allows for quick navigation with fuzzy
 searching. `cd` integration is quite simple. And you can open `vim` right from
-the llama. That's it. As simple and dumb as a llama.
+the walk. That's it. As simple and dumb as a walk.
 
 ## Install
 
 ```
-brew install llama
+brew install walk
 ```
 
 ```
-snap install llama
+snap install walk
 ```
 
 ```
-pkg_add llama
+pkg_add walk
 ```
 
 ```
-go install github.com/antonmedv/llama@latest
+go install github.com/antonmedv/walk@latest
 ```
 
-Or download [prebuild binaries](https://github.com/antonmedv/llama/releases).
+Or download [prebuild binaries](https://github.com/antonmedv/walk/releases).
 
 Put the next function into the **.bashrc** or a similar config:
 
@@ -48,7 +46,7 @@ Put the next function into the **.bashrc** or a similar config:
 
 ```bash
 function ll {
-  cd "$(llama "$@")"
+  cd "$(walk "$@")"
 }
 ```
 
@@ -57,7 +55,7 @@ function ll {
 
 ```fish
 function ll
-  set loc (llama $argv); and cd $loc;
+  set loc (walk $argv); and cd $loc;
 end
 ```
 
@@ -71,10 +69,10 @@ end
 
 ```powershell
 function ll() {
-  cd $(llama $args | Out-String -Stream | Select-Object -Last 1)
+  cd $(walk $args | Out-String -Stream | Select-Object -Last 1)
 }
 ```
-See [issues/30](https://github.com/antonmedv/llama/issues/30) for more details.
+See [issues/30](https://github.com/antonmedv/walk/issues/30) for more details.
 
 </td>
 </tr>
@@ -97,8 +95,8 @@ directory of the parent process.
 | `/`              | Fuzzy search       |
 | `dd`             | Delete file or dir |
 
-The `EDITOR` or `LLAMA_EDITOR` environment variable used for opening files from
-the llama.
+The `EDITOR` or `WALK_EDITOR` environment variable used for opening files from
+the walk.
 
 ```bash
 export EDITOR=vim
@@ -106,11 +104,11 @@ export EDITOR=vim
 
 Preview mode:
 
-<img src=".github/images/preview-mode.gif" width="600" alt="Llama Preview Mode">
+<img src=".github/images/preview-mode.gif" width="600" alt="Walk Preview Mode">
 
 Delete file or directory:
 
-<img src=".github/images/rm-demo.gif" width="600" alt="Llama Deletes a File">
+<img src=".github/images/rm-demo.gif" width="600" alt="Walk Deletes a File">
 
 ## Command-line options
 
@@ -118,7 +116,7 @@ Delete file or directory:
 
 Install [Nerd Fonts](https://www.nerdfonts.com) to get the icons to render properly.
 
-<img src=".github/images/demo-icons.gif" width="600" alt="Llama Icons Support">
+<img src=".github/images/demo-icons.gif" width="600" alt="Walk Icons Support">
 
 ## License
 

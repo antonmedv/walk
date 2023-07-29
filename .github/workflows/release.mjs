@@ -1,4 +1,4 @@
-let bin = 'llama'
+let bin = 'walk'
 let goos = [
   'linux',
   'darwin',

@@ -13,7 +13,7 @@ Type clear
 Enter
 Show
 
-Type "llama --icons"
+Type "walk --icons"
 Sleep 2s
 Enter
 

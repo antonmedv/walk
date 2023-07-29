@@ -12,7 +12,7 @@ Type clear
 Enter
 Show
 
-Type "llama"
+Type "walk"
 Sleep 2s
 Enter
 

@@ -719,7 +719,7 @@ func (m *model) openEditor() tea.Cmd {
 		return nil
 	}
 
-	cmdline := Split(lookup([]string{"LLAMA_EDITOR", "EDITOR"}, "less"), " ")
+	cmdline := Split(lookup([]string{"WALK_EDITOR", "EDITOR"}, "less"), " ")
 	cmdline = append(cmdline, filePath)
 
 	execCmd := exec.Command(cmdline[0], cmdline[1:]...)
@@ -808,7 +808,7 @@ func lookup(names []string, val string) string {
 }
 
 func usage() {
-	_, _ = fmt.Fprintf(os.Stderr, "\n  "+cursor.Render(" llama ")+"\n\n  Usage: llama [path]\n\n")
+	_, _ = fmt.Fprintf(os.Stderr, "\n  "+cursor.Render(" walk ")+"\n\n  Usage: walk [path]\n\n")
 	w := tabwriter.NewWriter(os.Stderr, 0, 8, 2, ' ', 0)
 	put := func(s string) {
 		_, _ = fmt.Fprintln(w, s)
@@ -829,7 +829,7 @@ func usage() {
 }
 
 func version() {
-	fmt.Fprintf(os.Stderr, "\n  %s %s\n\n", cursor.Render(" llama "), Version)
+	fmt.Fprintf(os.Stderr, "\n  %s %s\n\n", cursor.Render(" walk "), Version)
 	os.Exit(1)
 }
 
