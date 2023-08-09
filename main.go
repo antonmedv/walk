@@ -33,6 +33,7 @@ var (
 	search        = lipgloss.NewStyle().Background(lipgloss.Color("#499F1C")).Foreground(lipgloss.Color("#FFFFFF"))
 	danger        = lipgloss.NewStyle().Background(lipgloss.Color("#FF0000")).Foreground(lipgloss.Color("#FFFFFF"))
 	fileSeparator = string(filepath.Separator)
+	showIcons     = false
 )
 
 var (
@@ -70,21 +71,18 @@ func main() {
 		panic(err)
 	}
 
-	showIcons := false
 	for i := 1; i < len(os.Args); i++ {
 		if os.Args[i] == "--help" || os.Args[1] == "-h" {
 			usage()
 		}
-
 		if os.Args[i] == "--version" || os.Args[1] == "-v" {
 			version()
 		}
-
 		if os.Args[i] == "--icons" {
 			showIcons = true
+			parseIcons()
 			continue
 		}
-
 		startPath, err = filepath.Abs(os.Args[1])
 		if err != nil {
 			panic(err)
@@ -99,7 +97,6 @@ func main() {
 		width:     80,
 		height:    60,
 		positions: make(map[string]position),
-		showIcons: showIcons,
 	}
 	m.list()
 
@@ -129,7 +126,6 @@ type model struct {
 	previewContent    string              // Content of preview.
 	deleteCurrentFile bool                // Whether to delete current file.
 	toBeDeleted       []toDelete          // Map of files to be deleted.
-	showIcons         bool                // Whether to show icons or not
 }
 
 type position struct {
@@ -400,7 +396,7 @@ func (m *model) View() string {
 	height := m.listHeight()
 
 	var names [][]string
-	names, m.rows, m.columns = wrap(m.files, width, height, m.showIcons, func(name string, i, j int) {
+	names, m.rows, m.columns = wrap(m.files, width, height, func(name string, i, j int) {
 		if m.findPrevName && m.prevName == name {
 			m.c = i
 			m.r = j
@@ -694,7 +690,7 @@ func (m *model) preview() {
 
 		width := m.width / 2
 		height := m.height - 1 // Subtract 1 for name bar.
-		names, rows, columns := wrap(files, width, height, m.showIcons, nil)
+		names, rows, columns := wrap(files, width, height, nil)
 
 		output := make([]string, rows)
 		for j := 0; j < rows; j++ {
@@ -725,7 +721,7 @@ func (m *model) preview() {
 	}
 }
 
-func wrap(files []os.DirEntry, width int, height int, showIcons bool, callback func(name string, i, j int)) ([][]string, int, int) {
+func wrap(files []os.DirEntry, width int, height int, callback func(name string, i, j int)) ([][]string, int, int) {
 	// If it's possible to fit all files in one column on a third of the screen,
 	// just use one column. Otherwise, let's squeeze listing in half of screen.
 	columns := len(files) / (height / 3)
@@ -740,10 +736,6 @@ start:
 	names := make([][]string, columns)
 	n := 0
 
-	var icons iconMap
-	if showIcons {
-		icons = parseIcons()
-	}
 	for i := 0; i < columns; i++ {
 		names[i] = make([]string, rows)
 		// Columns size is going to be of max file name size.
