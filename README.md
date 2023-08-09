@@ -6,13 +6,13 @@
   <br>
 </p>
 
-Walk — a terminal file manager.
+Walk — a terminal navigator.
 
-Why another file manager? I wanted something simple and minimalistic.
+Why another terminal navigator? I wanted something simple and minimalistic.
 Something to help me with faster navigation in the filesystem; a `cd` and `ls`
 replacement. So I build "walk". It allows for quick navigation with fuzzy
 searching. `cd` integration is quite simple. And you can open `vim` right from
-the walk. That's it. As simple and dumb as a walk.
+the walk. That's it.
 
 ## Install
 
@@ -38,7 +38,7 @@ Put the next function into the **.bashrc** or a similar config:
 
 <table>
 <tr>
-  <th> Bash </th>
+  <th> Bash/Zsh </th>
   <th> Fish </th>
 </tr>
 <tr>
@@ -69,10 +69,9 @@ end
 
 ```powershell
 function ll() {
-  cd $(walk $args | Out-String -Stream | Select-Object -Last 1)
+  cd $(walk $args)
 }
 ```
-See [issues/30](https://github.com/antonmedv/walk/issues/30) for more details.
 
 </td>
 </tr>
