@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"io/fs"
 	"math"
 	"os"
@@ -23,6 +22,8 @@ import (
 )
 
 var Version = "v1.4.0"
+
+const separator = "    " // Separator between columns.
 
 var (
 	warning       = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
@@ -398,76 +399,13 @@ func (m *model) View() string {
 	}
 	height := m.listHeight()
 
-	// If it's possible to fit all files in one column on a third of the screen,
-	// just use one column. Otherwise, let's squeeze listing in half of screen.
-	m.columns = len(m.files) / (height / 3)
-	if m.columns <= 0 {
-		m.columns = 1
-	}
-
-start:
-	// Let's try to fit everything in terminal width with this many columns.
-	// If we are not able to do it, decrease column number and goto start.
-	m.rows = int(math.Ceil(float64(len(m.files)) / float64(m.columns)))
-	names := make([][]string, m.columns)
-	n := 0
-
-	var icons iconMap
-	if m.showIcons {
-		icons = parseIcons()
-	}
-
-	for i := 0; i < m.columns; i++ {
-		names[i] = make([]string, m.rows)
-		// Columns size is going to be of max file name size.
-		max := 0
-		for j := 0; j < m.rows; j++ {
-			name := ""
-			if n < len(m.files) {
-				if m.showIcons {
-					info, err := m.files[n].Info()
-					if err == nil {
-						icon := icons.getIcon(info)
-						if icon != "" {
-							name += icon + " "
-						}
-					}
-				}
-				name += m.files[n].Name()
-				if m.findPrevName && m.prevName == name {
-					m.c = i
-					m.r = j
-				}
-				if m.files[n].IsDir() {
-					// Dirs should have a slash at the end.
-					name += fileSeparator
-				}
-				n++
-			}
-			if max < len(name) {
-				max = len(name)
-			}
-
-			names[i][j] = name
+	var names [][]string
+	names, m.rows, m.columns = wrap(m.files, width, height, m.showIcons, func(name string, i, j int) {
+		if m.findPrevName && m.prevName == name {
+			m.c = i
+			m.r = j
 		}
-		// Append spaces to make all names in one column of same size.
-		for j := 0; j < m.rows; j++ {
-			names[i][j] += Repeat(" ", max-len(names[i][j]))
-		}
-	}
-
-	const separator = "    " // Separator between columns.
-	for j := 0; j < m.rows; j++ {
-		row := make([]string, m.columns)
-		for i := 0; i < m.columns; i++ {
-			row[i] = names[i][j]
-		}
-		if len(Join(row, separator)) > width && m.columns > 1 {
-			// Yep. No luck, let's decrease number of columns and try one more time.
-			m.columns--
-			goto start
-		}
-	}
+	})
 
 	// If we need to select previous directory on "up".
 	if m.findPrevName {
@@ -514,6 +452,11 @@ start:
 		output = output[m.offset : m.offset+height]
 	}
 
+	// Preview pane.
+	fileName, _ := m.fileName()
+	previewPane := bar.Render(fileName) + "\n"
+	previewPane += m.previewContent
+
 	// Location bar (grey).
 	location := m.path
 	if userHomeDir, err := os.UserHomeDir(); err == nil {
@@ -555,7 +498,7 @@ start:
 			main,
 			preview.
 				MaxHeight(m.height).
-				Render(m.previewContent),
+				Render(previewPane),
 		)
 	} else {
 		return main
@@ -744,11 +687,31 @@ func (m *model) preview() {
 		return
 	}
 	if fileInfo.IsDir() {
-		m.previewContent = ""
+		files, err := os.ReadDir(filePath)
+		if err != nil {
+			m.previewContent = err.Error()
+		}
+
+		width := m.width / 2
+		height := m.height - 1 // Subtract 1 for name bar.
+		names, rows, columns := wrap(files, width, height, m.showIcons, nil)
+
+		output := make([]string, rows)
+		for j := 0; j < rows; j++ {
+			row := make([]string, columns)
+			for i := 0; i < columns; i++ {
+				row[i] = names[i][j]
+			}
+			output[j] = Join(row, separator)
+		}
+		if len(output) >= height {
+			output = output[0:height]
+		}
+		m.previewContent = Join(output, "\n")
 		return
 	}
 
-	content, err := readContent(filePath)
+	content, err := os.ReadFile(filePath)
 	if err != nil {
 		m.previewContent = err.Error()
 		return
@@ -762,24 +725,73 @@ func (m *model) preview() {
 	}
 }
 
-func readContent(file string) ([]byte, error) {
-	f, err := os.Open(file)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	buf := make([]byte, 1024)
-	for {
-		_, err := f.Read(buf)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			continue
-		}
+func wrap(files []os.DirEntry, width int, height int, showIcons bool, callback func(name string, i, j int)) ([][]string, int, int) {
+	// If it's possible to fit all files in one column on a third of the screen,
+	// just use one column. Otherwise, let's squeeze listing in half of screen.
+	columns := len(files) / (height / 3)
+	if columns <= 0 {
+		columns = 1
 	}
 
-	return buf, nil
+start:
+	// Let's try to fit everything in terminal width with this many columns.
+	// If we are not able to do it, decrease column number and goto start.
+	rows := int(math.Ceil(float64(len(files)) / float64(columns)))
+	names := make([][]string, columns)
+	n := 0
+
+	var icons iconMap
+	if showIcons {
+		icons = parseIcons()
+	}
+	for i := 0; i < columns; i++ {
+		names[i] = make([]string, rows)
+		// Columns size is going to be of max file name size.
+		max := 0
+		for j := 0; j < rows; j++ {
+			name := ""
+			if n < len(files) {
+				if showIcons {
+					info, err := files[n].Info()
+					if err == nil {
+						icon := icons.getIcon(info)
+						if icon != "" {
+							name += icon + " "
+						}
+					}
+				}
+				name += files[n].Name()
+				if callback != nil {
+					callback(files[n].Name(), i, j)
+				}
+				if files[n].IsDir() {
+					// Dirs should have a slash at the end.
+					name += fileSeparator
+				}
+				n++
+			}
+			if max < len(name) {
+				max = len(name)
+			}
+			names[i][j] = name
+		}
+		// Append spaces to make all names in one column of same size.
+		for j := 0; j < rows; j++ {
+			names[i][j] += Repeat(" ", max-len(names[i][j]))
+		}
+	}
+	for j := 0; j < rows; j++ {
+		row := make([]string, columns)
+		for i := 0; i < columns; i++ {
+			row[i] = names[i][j]
+		}
+		if len(Join(row, separator)) > width && columns > 1 {
+			// Yep. No luck, let's decrease number of columns and try one more time.
+			columns--
+			goto start
+		}
+	}
+	return names, rows, columns
 }
 
 func (m *model) performPendingDeletions() {
