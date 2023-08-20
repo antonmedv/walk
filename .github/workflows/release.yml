@@ -53,7 +53,7 @@ jobs:
       - name: Build and Upload
         env:
           FORCE_COLOR: 3
-          GITHUB_TOKEN: ${{ secrets.MY_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.MY_WALK_GITHUB_TOKEN }}
         run: npx zx .github/workflows/release.mjs
 
   snap:
