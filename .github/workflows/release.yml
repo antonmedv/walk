@@ -74,7 +74,7 @@ jobs:
 
       - uses: snapcore/action-publish@v1
         env:
-          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.STORE_LOGIN }}
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.MY_SNAPCRAFT_CREDENTIALS }}
         with:
           snap: ${{ steps.build.outputs.snap }}
           release: stable
@@ -110,5 +110,5 @@ jobs:
       - name: Bump formulae
         uses: Homebrew/actions/bump-formulae@master
         with:
-          token: ${{ secrets.MY_TOKEN }}
+          token: ${{ secrets.MY_HOMEBREW_RELEASE_GITHUB_TOKEN }}
           formulae: walk
