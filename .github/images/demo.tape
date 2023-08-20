@@ -6,7 +6,7 @@ Set Height 600
 Set TypingSpeed 200ms
 
 Hide
-Type "cd ~/kubernetes"
+Type "cd ~/dev/kubernetes"
 Enter
 Type clear
 Enter
@@ -41,7 +41,7 @@ Sleep 1s
 Backspace
 Sleep 4s
 
-Type "/gy"
+Type "/mkf"
 Sleep 2s
 Enter
 

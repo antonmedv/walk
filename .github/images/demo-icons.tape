@@ -7,7 +7,7 @@ Set Height 600
 Set TypingSpeed 200ms
 
 Hide
-Type "cd ~/.config"
+Type "cd ~/dev/walk"
 Enter
 Type clear
 Enter
@@ -25,7 +25,7 @@ Sleep .5s
 Down
 Sleep 4s
 
-Type "/nvim"
+Type "/gh"
 Sleep 4s
 Enter
 
