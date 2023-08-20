@@ -1,11 +1,13 @@
 name: walk
 adopt-info: walk
-summary: A terminal file manager
-description: | 
-  Why another file manager? I wanted something simple and minimalistic. Something to help me with faster navigation in the filesystem; 
-  a cd and ls replacement. So I build "walk". It allows for quick navigation with fuzzy searching. cd integration is quite simple. 
-  And you can open vim right from the walk. That's it. As simple and dumb as a walk.
-  
+summary: A terminal navigator
+description: |
+  Why another terminal navigator? I wanted something simple and minimalistic.
+  Something to help me with faster navigation in the filesystem; a `cd` and `ls`
+  replacement. So I build "walk". It allows for quick navigation with fuzzy
+  searching. `cd` integration is quite simple. And you can open `vim` right from
+  the walk. That's it.
+
 base: core20
 grade: stable
 confinement: strict
@@ -22,7 +24,7 @@ parts:
     go-channel: 1.18/stable
     source: https://github.com/antonmedv/walk
     source-type: git
-    
+
     override-pull: |
       snapcraftctl pull
       snapcraftctl set-version "$(git describe --tags | sed 's/^v//')"
