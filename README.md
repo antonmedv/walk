@@ -38,10 +38,19 @@ Put the next function into the **.bashrc** or a similar config:
 
 <table>
 <tr>
-  <th> Bash/Zsh </th>
+  <th> Bash </th>
+  <th> Zsh </th>
   <th> Fish </th>
 </tr>
 <tr>
+<td>
+
+```bash
+command -v walk >/dev/null \
+  && function walk { command cd "$(command walk "$@")" || return ;}
+```
+
+</td>
 <td>
 
 ```bash
