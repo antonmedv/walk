@@ -96,6 +96,15 @@ the walk.
 export EDITOR=vim
 ```
 
+Preview mode:
+
+<img src=".github/images/preview-mode.gif" width="600" alt="Walk Preview Mode">
+
+Delete file or directory:
+
+<img src=".github/images/rm-demo.gif" width="600" alt="Walk Deletes a File">
+
+
 ## Command-line options
 
 ##### `--icons` display icons

@@ -8,9 +8,10 @@ Set TypingSpeed 200ms
 Hide
 Type "cd ~/dev/walk"
 Enter
+Type clear
+Enter
 Type "walk"
 Enter
-Space
 Type "/file"
 Sleep 2s
 Show
