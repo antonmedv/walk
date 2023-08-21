@@ -25,10 +25,5 @@ Sleep .5s
 Down
 Sleep 4s
 
-Type "/gh"
-Sleep 4s
-Enter
-
-Sleep 2s
 Ctrl+C
 Sleep 1s
