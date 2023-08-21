@@ -40,12 +40,13 @@ Put the next function into the **.bashrc** or a similar config:
 <tr>
   <th> Bash/Zsh </th>
   <th> Fish </th>
+  <th> PowerShell </th>
 </tr>
 <tr>
 <td>
 
 ```bash
-function ll {
+function lk {
   cd "$(walk "$@")"
 }
 ```
@@ -54,21 +55,16 @@ function ll {
 <td>
 
 ```fish
-function ll
+function lk
   set loc (walk $argv); and cd $loc;
 end
 ```
 
 </td>
-</tr>
-<tr>
-  <th colspan="2"> PowerShell </th>
-</tr>
-<tr>
-<td colspan="2">
+<td>
 
 ```powershell
-function ll() {
+function lk() {
   cd $(walk $args)
 }
 ```
@@ -78,8 +74,7 @@ function ll() {
 </table>
 
 
-Note: we need a such helper as the child process can't modify the working
-directory of the parent process.
+Now use `lk` command to start walking.
 
 ## Usage
 
