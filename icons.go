@@ -70,8 +70,6 @@ func (im iconMap) getIcon(f os.FileInfo) string {
 		key = "su"
 	case f.Mode()&os.ModeSetgid != 0:
 		key = "sg"
-	case f.Mode()&0111 != 0:
-		key = "ex"
 	}
 	if val, ok := im[key]; ok {
 		return val
@@ -88,6 +86,11 @@ func (im iconMap) getIcon(f os.FileInfo) string {
 	ext := filepath.Ext(f.Name())
 	if val, ok := im["*"+strings.ToLower(ext)]; ok {
 		return val
+	}
+	if f.Mode()&0111 != 0 {
+		if val, ok := im["ex"]; ok {
+			return val
+		}
 	}
 	if val, ok := im["fi"]; ok {
 		return val
