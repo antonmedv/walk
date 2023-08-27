@@ -84,8 +84,8 @@ Now use `lk` command to start walking.
 | `Enter`          | Enter directory    |
 | `Backspace`      | Exit directory     |
 | `Space`          | Toggle preview     |
-| `Esc`            | Exit with cd       |
-| `Ctrl+C`         | Exit without cd    |
+| `Esc`, `q`       | Exit with cd       |
+| `Ctrl+c`         | Exit without cd    |
 | `/`              | Fuzzy search       |
 | `dd`             | Delete file or dir |
 
