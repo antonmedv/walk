@@ -8,43 +8,53 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"os"
+	"path/filepath"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/nfnt/resize"
 )
 
-var asciiChars = "@%#*+=-:. "
-
-func pixelToASCII(val uint32) string {
-	length := len(asciiChars)
-	index := int((val * uint32(length-1)) / 65535)
-	return string(asciiChars[index])
+func isImageExt(filePath string) bool {
+	ext := filepath.Ext(filePath)
+	return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".gif"
 }
 
-func drawImage(imgPath string, width, height int) (string, error) {
-	imgFile, err := os.Open(imgPath)
+func drawImage(path string, width, height int) (string, error) {
+	file, err := os.Open(path)
 	if err != nil {
 		return "", err
 	}
-	defer imgFile.Close()
-	img, _, err := image.Decode(imgFile)
+	defer file.Close()
+
+	img, _, err := image.Decode(file)
 	if err != nil {
 		return "", err
 	}
-	img = resize.Resize(uint(width), uint(height), img, resize.Lanczos3)
+
+	img = resize.Resize(uint(width), uint(height)*2, img, resize.Lanczos3)
 	bounds := img.Bounds()
+
 	var buffer bytes.Buffer
-	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			r, g, b, a := img.At(x, y).RGBA()
-			if a < 6553 {
+	for y := bounds.Min.Y + 1; y < bounds.Max.Y-1; y += 2 {
+		for x := bounds.Min.X + 1; x < bounds.Max.X-1; x++ {
+			r1, g1, b1, a1 := img.At(x, y).RGBA()
+			r2, g2, b2, a2 := img.At(x, y+1).RGBA()
+
+			// If both pixels are transparent, print a space.
+			if a1 < 6553 && a2 < 6553 {
 				buffer.WriteString(" ")
 				continue
 			}
-			colorStr := fmt.Sprintf("#%02X%02X%02X", r>>8, g>>8, b>>8)
-			asciiChar := pixelToASCII((r + g + b) / 3)
-			coloredAscii := lipgloss.NewStyle().Background(lipgloss.Color(colorStr)).Render(asciiChar)
-			buffer.WriteString(coloredAscii)
+
+			colorStr1 := fmt.Sprintf("#%02X%02X%02X", r1>>8, g1>>8, b1>>8)
+			colorStr2 := fmt.Sprintf("#%02X%02X%02X", r2>>8, g2>>8, b2>>8)
+
+			block := lipgloss.NewStyle().
+				Foreground(lipgloss.Color(colorStr1)).
+				Background(lipgloss.Color(colorStr2)).
+				Render("▄")
+
+			buffer.WriteString(block)
 		}
 		buffer.WriteString("\n")
 	}

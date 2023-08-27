@@ -679,7 +679,7 @@ func (m *model) preview() {
 	if !ok {
 		return
 	}
-	ext := filepath.Ext(filePath)
+
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
 		return
@@ -710,10 +710,11 @@ func (m *model) preview() {
 		m.previewContent = Join(output, "\n")
 		return
 	}
-	if ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".gif" {
+
+	if isImageExt(filePath) {
 		img, err := drawImage(filePath, width, height)
 		if err != nil {
-			m.previewContent = warning.Render("No preview available")
+			m.previewContent = warning.Render("No image preview available")
 			return
 		}
 		m.previewContent = img
