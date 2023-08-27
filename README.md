@@ -115,7 +115,7 @@ Install [Nerd Fonts](https://www.nerdfonts.com) to get the icons to render prope
 
 ### Image preview
 
-<img src=".github/images/image-preview.png" width="600" alt="Walk Image Preview">
+<img src=".github/images/images-mode.gif" width="600" alt="Walk Image Preview">
 
 ## License
 
