@@ -96,24 +96,27 @@ the walk.
 export EDITOR=vim
 ```
 
-Preview mode:
+### Preview mode
+
+Press `Space` to toggle preview mode.
 
 <img src=".github/images/preview-mode.gif" width="600" alt="Walk Preview Mode">
 
-Delete file or directory:
+### Delete file or directory
+
+Press `dd` to delete file or directory. Press `u` to undo.
 
 <img src=".github/images/rm-demo.gif" width="600" alt="Walk Deletes a File">
 
+### Display icons
 
-## Command-line options
-
-##### `--icons` display icons
-
-Install [Nerd Fonts](https://www.nerdfonts.com) to get the icons to render properly.
+Install [Nerd Fonts](https://www.nerdfonts.com) and add `--icons` flag.
 
 <img src=".github/images/demo-icons.gif" width="600" alt="Walk Icons Support">
 
 ### Image preview
+
+No additional setup required.
 
 <img src=".github/images/images-mode.gif" width="600" alt="Walk Image Preview">
 
