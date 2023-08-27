@@ -727,18 +727,51 @@ func (m *model) preview() {
 		return
 	}
 
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		m.previewContent = err.Error()
-		return
+	var content []byte
+	// If file is too big (> 100kb), read only first 100kb.
+	if fileInfo.Size() > 100*1024 {
+		file, err := os.Open(filePath)
+		if err != nil {
+			m.previewContent = err.Error()
+			return
+		}
+		defer file.Close()
+		content = make([]byte, 100*1024)
+		_, err = file.Read(content)
+		if err != nil {
+			m.previewContent = err.Error()
+			return
+		}
+	} else {
+		content, err = os.ReadFile(filePath)
+		if err != nil {
+			m.previewContent = err.Error()
+			return
+		}
 	}
 
 	switch {
 	case utf8.Valid(content):
-		m.previewContent = Replace(string(content), "\t", "    ", -1)
+		m.previewContent = leaveOnlyAscii(content)
 	default:
 		m.previewContent = warning.Render("No preview available")
 	}
+}
+
+func leaveOnlyAscii(content []byte) string {
+	var result []byte
+
+	for _, b := range content {
+		if b == '\t' {
+			result = append(result, ' ', ' ', ' ', ' ')
+		} else if b == '\r' {
+			continue
+		} else if (b >= 32 && b <= 127) || b == '\n' { // '\n' is kept if newline needs to be retained
+			result = append(result, b)
+		}
+	}
+
+	return string(result)
 }
 
 func wrap(files []os.DirEntry, width int, height int, callback func(name string, i, j int)) ([][]string, int, int) {
