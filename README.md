@@ -113,6 +113,10 @@ Install [Nerd Fonts](https://www.nerdfonts.com) to get the icons to render prope
 
 <img src=".github/images/demo-icons.gif" width="600" alt="Walk Icons Support">
 
+### Image preview
+
+<img src=".github/images/image-preview.png" width="600" alt="Walk Image Preview">
+
 ## License
 
 [MIT](LICENSE)
