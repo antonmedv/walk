@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"sort"
 	. "strings"
 	"text/tabwriter"
 	"time"
@@ -594,11 +595,34 @@ func (m *model) list() {
 		panic(err)
 	}
 
-files:
+	var dirs []os.DirEntry
+	var regularFiles []os.DirEntry
+
 	for _, file := range files {
+		if file.IsDir() {
+			dirs = append(dirs, file)
+		} else {
+			regularFiles = append(regularFiles, file)
+		}
+	}
+
+	// Sort directories and regular files, case insensitive
+	sort.Slice(dirs, func(i, j int) bool {
+		return ToLower(dirs[i].Name()) < ToLower(dirs[j].Name())
+	})
+
+	sort.Slice(regularFiles, func(i, j int) bool {
+		return ToLower(regularFiles[i].Name()) < ToLower(regularFiles[j].Name())
+	})
+
+	// Combine sorted directories and regular files
+	var sortedFiles []os.DirEntry = append(dirs, regularFiles...)
+
+sortedFiles:
+	for _, file := range sortedFiles {
 		for _, toDelete := range m.toBeDeleted {
 			if path.Join(m.path, file.Name()) == toDelete.path {
-				continue files
+				continue sortedFiles
 			}
 		}
 		m.files = append(m.files, file)
