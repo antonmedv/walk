@@ -14,6 +14,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -63,6 +64,7 @@ var (
 	keyPreview   = key.NewBinding(key.WithKeys(" "))
 	keyDelete    = key.NewBinding(key.WithKeys("d"))
 	keyUndo      = key.NewBinding(key.WithKeys("u"))
+	keyYank      = key.NewBinding(key.WithKeys("y"))
 )
 
 func main() {
@@ -126,6 +128,7 @@ type model struct {
 	previewContent    string              // Content of preview.
 	deleteCurrentFile bool                // Whether to delete current file.
 	toBeDeleted       []toDelete          // Map of files to be deleted.
+	yankSuccess       bool                // Show yank info
 }
 
 type position struct {
@@ -356,9 +359,15 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 
+		case key.Matches(msg, keyYank):
+			// copy path to clipboard
+			clipboard.WriteAll(m.path)
+			m.yankSuccess = true
+			return m, nil
 		} // End of switch statement for key presses.
 
 		m.deleteCurrentFile = false
+		m.yankSuccess = false
 		m.updateOffset()
 		m.saveCursorPosition()
 		m.preview()
@@ -472,12 +481,12 @@ func (m *model) View() string {
 	if barLen > outputWidth {
 		location = location[min(barLen-outputWidth, len(location)):]
 	}
-	bar := bar.Render(location) + search.Render(filter)
+	barStr := bar.Render(location) + search.Render(filter)
 
-	main := bar + "\n" + Join(output, "\n")
+	main := barStr + "\n" + Join(output, "\n")
 
 	if len(m.files) == 0 {
-		main = bar + "\n" + warning.Render("No files")
+		main = barStr + "\n" + warning.Render("No files")
 	}
 
 	// Delete bar.
@@ -486,6 +495,12 @@ func (m *model) View() string {
 		timeLeft := int(toDelete.at.Sub(time.Now()).Seconds())
 		deleteBar := fmt.Sprintf("%v deleted. (u)ndo %v", path.Base(toDelete.path), timeLeft)
 		main += "\n" + danger.Render(deleteBar)
+	}
+
+	// Yank success.
+	if m.yankSuccess {
+		yankBar := fmt.Sprintf("yanked path to clipboard: %v", m.path)
+		main += "\n" + bar.Render(yankBar)
 	}
 
 	if m.previewMode {
@@ -825,6 +840,7 @@ func usage() {
 	put("    Ctrl+C\tExit without cd")
 	put("    /\tFuzzy search")
 	put("    dd\tDelete file or dir")
+	put("    y\tYank current directory path to clipboard")
 	put("\n  Flags:\n")
 	put("    --icons\tdisplay icons")
 	_ = w.Flush()
