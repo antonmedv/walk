@@ -6,12 +6,12 @@
   <br>
 </p>
 
-Walk — a terminal navigator.
+**Walk** — a terminal navigator.
 
 Why another terminal navigator? I wanted something simple and minimalistic.
 Something to help me with faster navigation in the filesystem; a `cd` and `ls`
-replacement. So I build "walk". It allows for quick navigation with fuzzy
-searching. `cd` integration is quite simple. And you can open `vim` right from
+replacement. So I build **walk**. It allows for quick navigation with fuzzy
+searching, `cd` integration is quite simple. And you can open `vim` right from
 the walk. That's it.
 
 ## Install
