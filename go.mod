@@ -5,8 +5,9 @@ go 1.17
 require (
 	github.com/charmbracelet/bubbles v0.16.1
 	github.com/charmbracelet/bubbletea v0.24.2
-	github.com/charmbracelet/lipgloss v0.7.1
+	github.com/charmbracelet/lipgloss v0.8.0
 	github.com/muesli/termenv v0.15.2
+	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/sahilm/fuzzy v0.1.0
 )
 

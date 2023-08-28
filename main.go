@@ -22,7 +22,7 @@ import (
 	"github.com/sahilm/fuzzy"
 )
 
-var Version = "v1.5.2"
+var Version = "v1.6.2"
 
 const separator = "    " // Separator between columns.
 
@@ -113,6 +113,7 @@ func main() {
 type model struct {
 	path              string              // Current dir path we are looking at.
 	files             []fs.DirEntry       // Files we are looking at.
+	err               error               // Error while listing files.
 	c, r              int                 // Selector position in columns and rows.
 	columns, rows     int                 // Displayed amount of rows and columns.
 	width, height     int                 // Terminal size.
@@ -194,7 +195,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.updateOffset()
 				m.saveCursorPosition()
-				m.preview()
 				// Save search id to clear only current search after delay.
 				// User may have already started typing next search.
 				searchId := m.searchId
@@ -208,7 +208,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keyForceQuit):
 			_, _ = fmt.Fprintln(os.Stderr) // Keep last item visible after prompt.
 			m.exitCode = 2
-			m.performPendingDeletions()
+			m.dontDoPendingDeletions()
 			return m, tea.Quit
 
 		case key.Matches(msg, keyQuit, keyQuitQ):
@@ -254,7 +254,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.findPrevName = true
 			}
 			m.list()
-			m.preview()
 			return m, nil
 
 		case key.Matches(msg, keyUp):
@@ -325,7 +324,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.findPrevName = true
 
 			if m.previewMode {
-				m.preview()
 				return m, tea.EnterAltScreen
 			} else {
 				m.previewContent = ""
@@ -371,7 +369,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.yankSuccess = false
 		m.updateOffset()
 		m.saveCursorPosition()
-		m.preview()
 
 	case clearSearchMsg:
 		if m.searchId == int(msg) {
@@ -419,6 +416,10 @@ func (m *model) View() string {
 		m.updateOffset()
 		m.saveCursorPosition()
 	}
+
+	// After we have updated offset and saved cursor position, we can
+	// preview currently selected file.
+	m.preview()
 
 	// Get output rows width before coloring.
 	outputWidth := len(path.Base(m.path)) // Use current dir name as default.
@@ -486,7 +487,9 @@ func (m *model) View() string {
 
 	main := barStr + "\n" + Join(output, "\n")
 
-	if len(m.files) == 0 {
+	if m.err != nil {
+		main = barStr + "\n" + warning.Render(m.err.Error())
+	} else if len(m.files) == 0 {
 		main = barStr + "\n" + warning.Render("No files")
 	}
 
@@ -606,7 +609,10 @@ func (m *model) list() {
 	// ReadDir already returns files and dirs sorted by filename.
 	files, err := os.ReadDir(m.path)
 	if err != nil {
-		panic(err)
+		m.err = err
+		return
+	} else {
+		m.err = nil
 	}
 
 files:
@@ -694,18 +700,21 @@ func (m *model) preview() {
 	if !ok {
 		return
 	}
+
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
 		return
 	}
+
+	width := m.width / 2
+	height := m.height - 1 // Subtract 1 for name bar.
+
 	if fileInfo.IsDir() {
 		files, err := os.ReadDir(filePath)
 		if err != nil {
 			m.previewContent = err.Error()
 		}
 
-		width := m.width / 2
-		height := m.height - 1 // Subtract 1 for name bar.
 		names, rows, columns := wrap(files, width, height, nil)
 
 		output := make([]string, rows)
@@ -723,18 +732,61 @@ func (m *model) preview() {
 		return
 	}
 
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		m.previewContent = err.Error()
+	if isImageExt(filePath) {
+		img, err := drawImage(filePath, width, height)
+		if err != nil {
+			m.previewContent = warning.Render("No image preview available")
+			return
+		}
+		m.previewContent = img
 		return
+	}
+
+	var content []byte
+	// If file is too big (> 100kb), read only first 100kb.
+	if fileInfo.Size() > 100*1024 {
+		file, err := os.Open(filePath)
+		if err != nil {
+			m.previewContent = err.Error()
+			return
+		}
+		defer file.Close()
+		content = make([]byte, 100*1024)
+		_, err = file.Read(content)
+		if err != nil {
+			m.previewContent = err.Error()
+			return
+		}
+	} else {
+		content, err = os.ReadFile(filePath)
+		if err != nil {
+			m.previewContent = err.Error()
+			return
+		}
 	}
 
 	switch {
 	case utf8.Valid(content):
-		m.previewContent = Replace(string(content), "\t", "    ", -1)
+		m.previewContent = leaveOnlyAscii(content)
 	default:
 		m.previewContent = warning.Render("No preview available")
 	}
+}
+
+func leaveOnlyAscii(content []byte) string {
+	var result []byte
+
+	for _, b := range content {
+		if b == '\t' {
+			result = append(result, ' ', ' ', ' ', ' ')
+		} else if b == '\r' {
+			continue
+		} else if (b >= 32 && b <= 127) || b == '\n' { // '\n' is kept if newline needs to be retained
+			result = append(result, b)
+		}
+	}
+
+	return string(result)
 }
 
 func wrap(files []os.DirEntry, width int, height int, callback func(name string, i, j int)) ([][]string, int, int) {
@@ -800,6 +852,12 @@ start:
 		}
 	}
 	return names, rows, columns
+}
+
+func (m *model) dontDoPendingDeletions() {
+	for _, toDelete := range m.toBeDeleted {
+		fmt.Fprintf(os.Stderr, "Was not deleted: %v\n", toDelete.path)
+	}
 }
 
 func (m *model) performPendingDeletions() {
