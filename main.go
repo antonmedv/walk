@@ -892,8 +892,8 @@ func usage() {
 }
 
 func version() {
-	fmt.Fprintf(os.Stderr, "\n  %s %s\n\n", cursor.Render(" walk "), Version)
-	os.Exit(1)
+	fmt.Printf("\n  %s %s\n\n", cursor.Render(" walk "), Version)
+	os.Exit(0)
 }
 
 func min(a, b int) int {
