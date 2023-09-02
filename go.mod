@@ -3,6 +3,7 @@ module github.com/antonmedv/walk
 go 1.17
 
 require (
+	github.com/antonmedv/clipboard v1.0.1
 	github.com/charmbracelet/bubbles v0.16.1
 	github.com/charmbracelet/bubbletea v0.24.2
 	github.com/charmbracelet/lipgloss v0.8.0
@@ -12,7 +13,6 @@ require (
 )
 
 require (
-	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/containerd/console v1.0.4-0.20230313162750-1ae8d489ac81 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
