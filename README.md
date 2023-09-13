@@ -29,7 +29,7 @@ pkg_add walk
 ```
 
 ```
-pacmac -S walk
+pacman -S walk
 ```
 
 ```
