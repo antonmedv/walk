@@ -1,4 +1,5 @@
-github.com/atotto/clipboard v0.1.4/go.mod h1:ZY9tmq7sm5xIbd9bOK4onWV4S6X0u6GY7Vn0Yu86PYI=
+github.com/antonmedv/clipboard v1.0.1 h1:z9rRBhSKt4lDb6uNcMykUmNbspk/6v07JeiTaOfYYOY=
+github.com/antonmedv/clipboard v1.0.1/go.mod h1:3jcOUCdraVHehZaOsMaJZoE92MxURt5fovC1gDAiZ2s=
 github.com/aymanbagabas/go-osc52/v2 v2.0.1 h1:HwpRHbFMcZLEVr42D4p7XBqjyuxQH5SMiErDT4WkJ2k=
 github.com/aymanbagabas/go-osc52/v2 v2.0.1/go.mod h1:uYgXzlJ7ZpABp8OJ+exZzJJhRNQ2ASbcXHWsFqH8hp8=
 github.com/charmbracelet/bubbles v0.16.1 h1:6uzpAAaT9ZqKssntbvZMlksWHruQLNxg49H5WdeuYSY=

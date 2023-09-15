@@ -3,6 +3,7 @@ module github.com/antonmedv/walk
 go 1.17
 
 require (
+	github.com/antonmedv/clipboard v1.0.1
 	github.com/charmbracelet/bubbles v0.16.1
 	github.com/charmbracelet/bubbletea v0.24.2
 	github.com/charmbracelet/lipgloss v0.8.0
