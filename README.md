@@ -21,10 +21,6 @@ brew install walk
 ```
 
 ```
-snap install walk
-```
-
-```
 pkg_add walk
 ```
 

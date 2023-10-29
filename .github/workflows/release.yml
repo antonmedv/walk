@@ -25,9 +25,7 @@ jobs:
         shell: bash
         run: |
           set -x
-          sed -i "s/version: .*/version: ${RELEASE_VERSION}/" snap/snapcraft.yaml
           sed -i "s/Version = .*/Version = \"${RELEASE_VERSION}\"/" main.go
-          git add snap/snapcraft.yaml main.go
           git config --global user.email "github-actions@github.com"
           git config --global user.name "github-actions"
           git commit -m "Release $RELEASE_VERSION"
@@ -55,29 +53,6 @@ jobs:
           FORCE_COLOR: 3
           GITHUB_TOKEN: ${{ secrets.MY_WALK_GITHUB_TOKEN }}
         run: npx zx .github/workflows/release.mjs
-
-  snap:
-    needs: [commit]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          ref: master
-
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: 1.18
-
-      - uses: snapcore/action-build@v1
-        id: build
-
-      - uses: snapcore/action-publish@v1
-        env:
-          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.MY_SNAPCRAFT_CREDENTIALS }}
-        with:
-          snap: ${{ steps.build.outputs.snap }}
-          release: stable
 
   brew:
     needs: [commit]
