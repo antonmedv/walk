@@ -20,7 +20,7 @@ jobs:
           go-version: 1.18
 
       - name: Get Version
-        run: echo "RELEASE_VERSION=${GITHUB_REF##*/}" >> $GITHUB_ENV
+        run: echo "RELEASE_VERSION=$(git describe --abbrev=0 --tags)" >> $GITHUB_ENV
 
       - name: Update Version
         shell: bash
