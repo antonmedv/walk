@@ -28,6 +28,7 @@ jobs:
           sed -i "s/Version = .*/Version = \"${RELEASE_VERSION}\"/" main.go
           git config --global user.email "github-actions@github.com"
           git config --global user.name "github-actions"
+          git add main.go
           git commit -m "Release $RELEASE_VERSION"
           git tag "$RELEASE_VERSION" --force
           git push --atomic --force origin master "$RELEASE_VERSION"  
