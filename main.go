@@ -35,6 +35,7 @@ var (
 	danger        = lipgloss.NewStyle().Background(lipgloss.Color("#FF0000")).Foreground(lipgloss.Color("#FFFFFF"))
 	fileSeparator = string(filepath.Separator)
 	showIcons     = false
+	dirOnly       = false
 )
 
 var (
@@ -84,6 +85,10 @@ func main() {
 		if os.Args[i] == "--icons" {
 			showIcons = true
 			parseIcons()
+			continue
+		}
+		if os.Args[i] == "--dir-only" {
+			dirOnly = true
 			continue
 		}
 		startPath, err = filepath.Abs(os.Args[1])
@@ -617,6 +622,11 @@ func (m *model) list() {
 
 files:
 	for _, file := range files {
+		if dirOnly {
+			if !file.IsDir() {
+				continue
+			}
+		}
 		for _, toDelete := range m.toBeDeleted {
 			if path.Join(m.path, file.Name()) == toDelete.path {
 				continue files
@@ -902,6 +912,7 @@ func usage() {
 	put("    y\tYank current directory path to clipboard")
 	put("\n  Flags:\n")
 	put("    --icons\tdisplay icons")
+	put("    --dir-only\tshow dirs only")
 	_ = w.Flush()
 	_, _ = fmt.Fprintf(os.Stderr, "\n")
 	os.Exit(1)
