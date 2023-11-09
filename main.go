@@ -9,7 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
-	. "strings"
+	"strings"
 	"text/tabwriter"
 	"time"
 	"unicode/utf8"
@@ -22,6 +22,7 @@ import (
 	"github.com/sahilm/fuzzy"
 )
 
+// Version holds the current version of walk.
 var Version = "v1.7.0"
 
 const separator = "    " // Separator between columns.
@@ -121,7 +122,7 @@ type model struct {
 	positions         map[string]position // Map of cursor positions per path.
 	search            string              // Type to select files with this value.
 	searchMode        bool                // Whether type-to-select is active.
-	searchId          int                 // Search id to indicate what search we are currently on.
+	searchID          int                 // Search id to indicate what search we are currently on.
 	matchedIndexes    []int               // List of char found indexes.
 	prevName          string              // Base name of previous directory before "up".
 	findPrevName      bool                // On View(), set c&r to point to prevName.
@@ -197,9 +198,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.saveCursorPosition()
 				// Save search id to clear only current search after delay.
 				// User may have already started typing next search.
-				searchId := m.searchId
+				searchID := m.searchID
 				return m, tea.Tick(2*time.Second, func(time.Time) tea.Msg {
-					return clearSearchMsg(searchId)
+					return clearSearchMsg(searchID)
 				})
 			}
 		}
@@ -308,7 +309,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, keySearch):
 			m.searchMode = true
-			m.searchId++
+			m.searchID++
 			m.search = ""
 
 		case key.Matches(msg, keyPreview):
@@ -325,10 +326,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			if m.previewMode {
 				return m, tea.EnterAltScreen
-			} else {
-				m.previewContent = ""
-				return m, tea.ExitAltScreen
 			}
+			m.previewContent = ""
+			return m, tea.ExitAltScreen
 
 		case key.Matches(msg, keyDelete):
 			filePathToDelete, ok := m.filePath()
@@ -344,9 +344,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, tea.Tick(time.Second, func(time.Time) tea.Msg {
 						return toBeDeletedMsg(0)
 					})
-				} else {
-					m.deleteCurrentFile = true
 				}
+				m.deleteCurrentFile = true
 			}
 			return m, nil
 
@@ -371,7 +370,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.saveCursorPosition()
 
 	case clearSearchMsg:
-		if m.searchId == int(msg) {
+		if m.searchID == int(msg) {
 			m.searchMode = false
 		}
 
@@ -432,7 +431,7 @@ func (m *model) View() string {
 				outputWidth = width
 			}
 		}
-		outputWidth = max(outputWidth, len(Join(row, separator)))
+		outputWidth = max(outputWidth, len(strings.Join(row, separator)))
 	} else {
 		outputWidth = width
 	}
@@ -452,7 +451,7 @@ func (m *model) View() string {
 				row[i] = names[i][j]
 			}
 		}
-		output[j] = Join(row, separator)
+		output[j] = strings.Join(row, separator)
 	}
 
 	if len(output) >= m.offset+height {
@@ -467,16 +466,16 @@ func (m *model) View() string {
 	// Location bar (grey).
 	location := m.path
 	if userHomeDir, err := os.UserHomeDir(); err == nil {
-		location = Replace(m.path, userHomeDir, "~", 1)
+		location = strings.Replace(m.path, userHomeDir, "~", 1)
 	}
 	if runtime.GOOS == "windows" {
-		location = ReplaceAll(Replace(location, "\\/", fileSeparator, 1), "/", fileSeparator)
+		location = strings.ReplaceAll(strings.Replace(location, "\\/", fileSeparator, 1), "/", fileSeparator)
 	}
 
 	// Filter bar (green).
 	filter := ""
 	if m.searchMode {
-		location = TrimSuffix(location, fileSeparator)
+		location = strings.TrimSuffix(location, fileSeparator)
 		filter = fileSeparator + m.search
 	}
 	barLen := len(location) + len(filter)
@@ -485,7 +484,7 @@ func (m *model) View() string {
 	}
 	barStr := bar.Render(location) + search.Render(filter)
 
-	main := barStr + "\n" + Join(output, "\n")
+	main := barStr + "\n" + strings.Join(output, "\n")
 
 	if m.err != nil {
 		main = barStr + "\n" + warning.Render(m.err.Error())
@@ -496,7 +495,7 @@ func (m *model) View() string {
 	// Delete bar.
 	if len(m.toBeDeleted) > 0 {
 		toDelete := m.toBeDeleted[len(m.toBeDeleted)-1]
-		timeLeft := int(toDelete.at.Sub(time.Now()).Seconds())
+		timeLeft := int(time.Until(toDelete.at).Seconds())
 		deleteBar := fmt.Sprintf("%v deleted. (u)ndo %v", path.Base(toDelete.path), timeLeft)
 		main += "\n" + danger.Render(deleteBar)
 	}
@@ -515,9 +514,9 @@ func (m *model) View() string {
 				MaxHeight(m.height).
 				Render(previewPane),
 		)
-	} else {
-		return main
 	}
+
+	return main
 }
 
 func (m *model) moveUp() {
@@ -611,9 +610,8 @@ func (m *model) list() {
 	if err != nil {
 		m.err = err
 		return
-	} else {
-		m.err = nil
 	}
+	m.err = nil
 
 files:
 	for _, file := range files {
@@ -680,7 +678,7 @@ func (m *model) openEditor() tea.Cmd {
 		return nil
 	}
 
-	cmdline := Split(lookup([]string{"WALK_EDITOR", "EDITOR"}, "less"), " ")
+	cmdline := strings.Split(lookup([]string{"WALK_EDITOR", "EDITOR"}, "less"), " ")
 	cmdline = append(cmdline, filePath)
 
 	execCmd := exec.Command(cmdline[0], cmdline[1:]...)
@@ -723,12 +721,12 @@ func (m *model) preview() {
 			for i := 0; i < columns; i++ {
 				row[i] = names[i][j]
 			}
-			output[j] = Join(row, separator)
+			output[j] = strings.Join(row, separator)
 		}
 		if len(output) >= height {
 			output = output[0:height]
 		}
-		m.previewContent = Join(output, "\n")
+		m.previewContent = strings.Join(output, "\n")
 		return
 	}
 
@@ -767,13 +765,13 @@ func (m *model) preview() {
 
 	switch {
 	case utf8.Valid(content):
-		m.previewContent = leaveOnlyAscii(content)
+		m.previewContent = leaveOnlyASCII(content)
 	default:
 		m.previewContent = warning.Render("No preview available")
 	}
 }
 
-func leaveOnlyAscii(content []byte) string {
+func leaveOnlyASCII(content []byte) string {
 	var result []byte
 
 	for _, b := range content {
@@ -837,7 +835,7 @@ start:
 		}
 		// Append spaces to make all names in one column of same size.
 		for j := 0; j < rows; j++ {
-			names[i][j] += Repeat(" ", max-len(names[i][j]))
+			names[i][j] += strings.Repeat(" ", max-len(names[i][j]))
 		}
 	}
 	for j := 0; j < rows; j++ {
@@ -845,7 +843,7 @@ start:
 		for i := 0; i < columns; i++ {
 			row[i] = names[i][j]
 		}
-		if len(Join(row, separator)) > width && columns > 1 {
+		if len(strings.Join(row, separator)) > width && columns > 1 {
 			// Yep. No luck, let's decrease number of columns and try one more time.
 			columns--
 			goto start
