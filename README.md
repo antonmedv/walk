@@ -63,6 +63,14 @@ end
 </td>
 <td>
 
+```tcsh/csh
+alias lk 'cd "`walk \!:*`"'
+```
+
+</td>
+<td>
+
+
 ```powershell
 function lk() {
   cd $(walk $args)
@@ -72,7 +80,6 @@ function lk() {
 </td>
 </tr>
 </table>
-
 
 Now use `lk` command to start walking.
 
