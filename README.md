@@ -34,7 +34,7 @@ go install github.com/antonmedv/walk@latest
 
 Or download [prebuild binaries](https://github.com/antonmedv/walk/releases).
 
-Put the next function into the **.bashrc** or a similar config:
+Put the next function/alias into the **.bashrc** or a similar config:
 
 <table>
 <tr>
@@ -65,7 +65,6 @@ end
 <td>
 
 ```tcsh/csh
-Add the following to your .cshrc file: 
 alias lk 'cd "`walk \!:*`"'
 ```
 
