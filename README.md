@@ -40,6 +40,7 @@ Put the next function into the **.bashrc** or a similar config:
 <tr>
   <th> Bash/Zsh </th>
   <th> Fish </th>
+  <th> (t)csh </th>
   <th> PowerShell </th>
 </tr>
 <tr>
@@ -64,6 +65,7 @@ end
 <td>
 
 ```tcsh/csh
+Add the following to your .cshrc file: 
 alias lk 'cd "`walk \!:*`"'
 ```
 
