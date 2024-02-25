@@ -81,8 +81,8 @@ Now use `lk` command to start walking.
 | Key binding      | Description        |
 |------------------|--------------------|
 | `Arrows`, `hjkl` | Move cursor        |
-| `Enter`          | Enter directory    |
-| `Backspace`      | Exit directory     |
+| `Enter`, `i`     | Enter directory    |
+| `Backspace`, `o` | Exit directory     |
 | `Space`          | Toggle preview     |
 | `Esc`, `q`       | Exit with cd       |
 | `Ctrl+c`         | Exit without cd    |

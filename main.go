@@ -44,7 +44,9 @@ var (
 	keyQuit      = key.NewBinding(key.WithKeys("esc"))
 	keyQuitQ     = key.NewBinding(key.WithKeys("q"))
 	keyOpen      = key.NewBinding(key.WithKeys("enter"))
+	keyOpenI     = key.NewBinding(key.WithKeys("i"))
 	keyBack      = key.NewBinding(key.WithKeys("backspace"))
+	keyBackO     = key.NewBinding(key.WithKeys("o"))
 	keyUp        = key.NewBinding(key.WithKeys("up"))
 	keyDown      = key.NewBinding(key.WithKeys("down"))
 	keyLeft      = key.NewBinding(key.WithKeys("left"))
@@ -220,7 +222,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.performPendingDeletions()
 			return m, tea.Quit
 
-		case key.Matches(msg, keyOpen):
+		case key.Matches(msg, keyOpen, keyOpenI):
 			m.searchMode = false
 			filePath, ok := m.filePath()
 			if !ok {
@@ -244,7 +246,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.openEditor()
 			}
 
-		case key.Matches(msg, keyBack):
+		case key.Matches(msg, keyBack, keyBackO):
 			m.searchMode = false
 			m.prevName = filepath.Base(m.path)
 			m.path = filepath.Join(m.path, "..")
