@@ -75,6 +75,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	startPreviewMode := false
 
 	for i := 1; i < len(os.Args); i++ {
 		if os.Args[i] == "--help" || os.Args[1] == "-h" {
@@ -86,6 +87,10 @@ func main() {
 		if os.Args[i] == "--icons" {
 			showIcons = true
 			parseIcons()
+			continue
+		}
+		if os.Args[i] == "--preview" {
+			startPreviewMode = true
 			continue
 		}
 		startPath, err = filepath.Abs(os.Args[1])
@@ -102,6 +107,7 @@ func main() {
 		width:     80,
 		height:    60,
 		positions: make(map[string]position),
+		previewMode: startPreviewMode,
 	}
 	m.list()
 
@@ -904,6 +910,7 @@ func usage() {
 	put("    y\tYank current directory path to clipboard")
 	put("\n  Flags:\n")
 	put("    --icons\tdisplay icons")
+	put("    --preview\tdisplay preview")
 	_ = w.Flush()
 	_, _ = fmt.Fprintf(os.Stderr, "\n")
 	os.Exit(1)
