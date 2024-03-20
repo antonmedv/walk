@@ -25,10 +25,6 @@ pkg_add walk
 ```
 
 ```
-pacman -S walk
-```
-
-```
 go install github.com/antonmedv/walk@latest
 ```
 
