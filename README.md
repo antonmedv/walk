@@ -30,12 +30,13 @@ go install github.com/antonmedv/walk@latest
 
 Or download [prebuild binaries](https://github.com/antonmedv/walk/releases).
 
-Put the next function into the **.bashrc** or a similar config:
+Put the next function/alias into the **.bashrc** or a similar config:
 
 <table>
 <tr>
   <th> Bash/Zsh </th>
   <th> Fish </th>
+  <th> (t)csh </th>
   <th> PowerShell </th>
 </tr>
 <tr>
@@ -59,6 +60,14 @@ end
 </td>
 <td>
 
+```tcsh/csh
+alias lk 'cd "`walk \!:*`"'
+```
+
+</td>
+<td>
+
+
 ```powershell
 function lk() {
   cd $(walk $args)
@@ -68,7 +77,6 @@ function lk() {
 </td>
 </tr>
 </table>
-
 
 Now use `lk` command to start walking.
 
