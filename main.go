@@ -213,13 +213,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		switch {
-		case key.Matches(msg, keyForceQuit):
+		case key.Matches(msg, keyQuit, keyForceQuit):
 			_, _ = fmt.Fprintln(os.Stderr) // Keep last item visible after prompt.
 			m.exitCode = 2
 			m.dontDoPendingDeletions()
 			return m, tea.Quit
 
-		case key.Matches(msg, keyQuit, keyQuitQ):
+		case key.Matches(msg, keyQuitQ):
 			_, _ = fmt.Fprintln(os.Stderr) // Keep last item visible after prompt.
 			fmt.Println(m.path)            // Write to cd.
 			m.exitCode = 0
