@@ -37,6 +37,7 @@ var (
 	fileSeparator = string(filepath.Separator)
 	showIcons     = false
 	dirOnly       = false
+	holdFuzzy     = false
 	strlen        = runewidth.StringWidth
 )
 
@@ -92,10 +93,14 @@ func main() {
 		}
 		if os.Args[i] == "--dir-only" {
 			dirOnly = true
-      continue
-    }
+			continue
+		}
 		if os.Args[i] == "--preview" {
 			startPreviewMode = true
+			continue
+		}
+		if os.Args[i] == "--fuzzy" {
+			holdFuzzy = true
 			continue
 		}
 		startPath, err = filepath.Abs(os.Args[1])
@@ -108,10 +113,10 @@ func main() {
 	lipgloss.SetColorProfile(output.ColorProfile())
 
 	m := &model{
-		path:      startPath,
-		width:     80,
-		height:    60,
-		positions: make(map[string]position),
+		path:        startPath,
+		width:       80,
+		height:      60,
+		positions:   make(map[string]position),
 		previewMode: startPreviewMode,
 	}
 	m.list()
@@ -185,7 +190,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		if m.searchMode {
-			if key.Matches(msg, keySearch) {
+			if key.Matches(msg, keySearch, keyOpen) {
 				m.searchMode = false
 				return m, nil
 			} else if key.Matches(msg, keyBack) {
@@ -208,6 +213,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.updateOffset()
 				m.saveCursorPosition()
+
+				if holdFuzzy {
+					return m, nil
+				}
 				// Save search id to clear only current search after delay.
 				// User may have already started typing next search.
 				searchId := m.searchId
@@ -922,6 +931,8 @@ func usage() {
 	put("    --icons\tdisplay icons")
 	put("    --dir-only\tshow dirs only")
 	put("    --preview\tdisplay preview")
+	put("    --fuzzy\thold on after entering search mode, not to quit after delay")
+	put("    --version\tdisplay version")
 	_ = w.Flush()
 	_, _ = fmt.Fprintf(os.Stderr, "\n")
 	os.Exit(1)
