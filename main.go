@@ -851,6 +851,11 @@ func wrap(files []os.DirEntry, width int, height int, callback func(name string,
 		columns = 2
 	}
 
+	// Fifteenth column is enough for everyone.
+	if columns > 15 {
+		columns = 15
+	}
+
 start:
 	// Let's try to fit everything in terminal width with this many columns.
 	// If we are not able to do it, decrease column number and goto start.
