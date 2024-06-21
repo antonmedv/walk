@@ -25,10 +25,6 @@ pkg_add walk
 ```
 
 ```
-pacman -S walk
-```
-
-```
 go install github.com/antonmedv/walk@latest
 ```
 
@@ -76,27 +72,6 @@ function lk() {
 
 Now use `lk` command to start walking.
 
-## Usage
-
-| Key binding      | Description        |
-|------------------|--------------------|
-| `Arrows`, `hjkl` | Move cursor        |
-| `Enter`          | Enter directory    |
-| `Backspace`      | Exit directory     |
-| `Space`          | Toggle preview     |
-| `Esc`, `q`       | Exit with cd       |
-| `Ctrl+c`         | Exit without cd    |
-| `/`              | Fuzzy search       |
-| `dd`             | Delete file or dir |
-| `y`              | yank current dir   |
-
-The `EDITOR` or `WALK_EDITOR` environment variable used for opening files from
-the walk.
-
-```bash
-export EDITOR=vim
-```
-
 ### Preview mode
 
 Press `Space` to toggle preview mode.
@@ -121,9 +96,35 @@ No additional setup is required.
 
 <img src=".github/images/images-mode.gif" width="600" alt="Walk Image Preview">
 
-## Become a sponsor
+## Usage
 
-Every line of code in my repositories 📖 signifies my unwavering commitment to open source 💡. Your support 🤝 ensures these projects keep thriving, innovating, and benefiting all 💼. If my work has ever resonated 🎵 or helped you, kindly consider showing love ❤️ by sponsoring. [**🚀 Sponsor Me Today! 🚀**](https://github.com/sponsors/antonmedv)
+| Key binding      | Description        |
+|------------------|--------------------|
+| `Arrows`, `hjkl` | Move cursor        |
+| `Enter`          | Enter directory    |
+| `Backspace`      | Exit directory     |
+| `Space`          | Toggle preview     |
+| `Esc`, `q`       | Exit with cd       |
+| `Ctrl+c`         | Exit without cd    |
+| `/`              | Fuzzy search       |
+| `dd`             | Delete file or dir |
+| `y`              | yank current dir   |
+
+## Configuration
+
+The `EDITOR` or `WALK_EDITOR` environment variable used for opening files from
+the walk.
+
+```bash
+export EDITOR=vim
+```
+
+| Flag         | Description                |
+|--------------|----------------------------|
+| `--icons`    | Show icons                 |
+| `--dir-only` | Show dirs only             |
+| `--preview`  | Start with preview mode on |
+| `--fuzzy`    | Start with fuzzy search on |
 
 ## License
 
