@@ -28,17 +28,18 @@ var Version = "v1.8.0"
 const separator = "    " // Separator between columns.
 
 var (
-	warning        = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
-	preview        = lipgloss.NewStyle().PaddingLeft(2)
-	cursor         = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
-	bar            = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
-	search         = lipgloss.NewStyle().Background(lipgloss.Color("#499F1C")).Foreground(lipgloss.Color("#FFFFFF"))
-	danger         = lipgloss.NewStyle().Background(lipgloss.Color("#FF0000")).Foreground(lipgloss.Color("#FFFFFF"))
-	fileSeparator  = string(filepath.Separator)
-	showIcons      = false
-	dirOnly        = false
-	fuzzyByDefault = false
-	strlen         = runewidth.StringWidth
+	warning          = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
+	preview          = lipgloss.NewStyle().PaddingLeft(2)
+	cursor           = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
+	bar              = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
+	search           = lipgloss.NewStyle().Background(lipgloss.Color("#499F1C")).Foreground(lipgloss.Color("#FFFFFF"))
+	danger           = lipgloss.NewStyle().Background(lipgloss.Color("#FF0000")).Foreground(lipgloss.Color("#FFFFFF"))
+	fileSeparator    = string(filepath.Separator)
+	showIcons        = false
+	dirOnly          = false
+	startPreviewMode = false
+	fuzzyByDefault   = false
+	strlen           = runewidth.StringWidth
 )
 
 var (
@@ -78,7 +79,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	startPreviewMode := false
 
 	argsWithoutFlags := make([]string, 0)
 	for i := 1; i < len(os.Args); i++ {
@@ -108,9 +108,11 @@ func main() {
 		argsWithoutFlags = append(argsWithoutFlags, os.Args[i])
 	}
 
-	startPath, err = filepath.Abs(argsWithoutFlags[0])
-	if err != nil {
-		panic(err)
+	if len(argsWithoutFlags) > 0 {
+		startPath, err = filepath.Abs(argsWithoutFlags[0])
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	output := termenv.NewOutput(os.Stderr)
@@ -518,7 +520,6 @@ func (m *model) View() string {
 	// Filter bar (green).
 	filter := ""
 	if m.searchMode || fuzzyByDefault {
-		location = TrimSuffix(location, fileSeparator)
 		filter = fileSeparator + m.search
 
 		// If fuzzy is on and search is empty, don't show filter.
@@ -665,7 +666,7 @@ files:
 	for _, file := range files {
 		if m.hideHidden && HasPrefix(file.Name(), ".") {
 			continue files
-    }
+		}
 		if dirOnly && !file.IsDir() {
 			continue files
 		}
