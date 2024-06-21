@@ -100,14 +100,14 @@ No additional setup is required.
 
 | Key binding      | Description        |
 |------------------|--------------------|
-| `Arrows`, `hjkl` | Move cursor        |
-| `Enter`          | Enter directory    |
-| `Backspace`      | Exit directory     |
-| `Space`          | Toggle preview     |
-| `Esc`, `q`       | Exit with cd       |
-| `Ctrl+c`         | Exit without cd    |
+| `arrows`, `hjkl` | Move cursor        |
+| `enter`          | Enter directory    |
+| `backspace`      | Exit directory     |
+| `space`          | Toggle preview     |
+| `esc`, `q`       | Exit with cd       |
+| `ctrl+c`         | Exit without cd    |
 | `/`              | Fuzzy search       |
-| `dd`             | Delete file or dir |
+| `d`, `delete`    | Delete file or dir |
 | `y`              | yank current dir   |
 | `.`              | Hide hidden files  |
 

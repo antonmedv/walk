@@ -48,6 +48,7 @@ var (
 	keyQuitQ     = key.NewBinding(key.WithKeys("q"))
 	keyOpen      = key.NewBinding(key.WithKeys("enter"))
 	keyBack      = key.NewBinding(key.WithKeys("backspace"))
+	keyFnDelete  = key.NewBinding(key.WithKeys("delete"))
 	keyUp        = key.NewBinding(key.WithKeys("up"))
 	keyDown      = key.NewBinding(key.WithKeys("down"))
 	keyLeft      = key.NewBinding(key.WithKeys("left"))
@@ -352,7 +353,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.ExitAltScreen
 			}
 
-		case key.Matches(msg, keyDelete):
+		case key.Matches(msg, keyDelete, keyFnDelete):
 			filePathToDelete, ok := m.filePath()
 			if ok {
 				if m.deleteCurrentFile {
@@ -981,14 +982,14 @@ func usage() {
 	put := func(s string) {
 		_, _ = fmt.Fprintln(w, s)
 	}
-	put("    Arrows, hjkl\tMove cursor")
-	put("    Enter\tEnter directory")
-	put("    Backspace\tExit directory")
-	put("    Space\tToggle preview")
-	put("    Esc, q\tExit with cd")
-	put("    Ctrl+c\tExit without cd")
+	put("    arrows, hjkl\tMove cursor")
+	put("    enter\tEnter directory")
+	put("    backspace\tExit directory")
+	put("    space\tToggle preview")
+	put("    esc, q\tExit with cd")
+	put("    ctrl+c\tExit without cd")
 	put("    /\tFuzzy search")
-	put("    dd\tDelete file or dir")
+	put("    d, delete\tDelete file or dir")
 	put("    y\tYank current directory path to clipboard")
 	put("    .\tHide hidden files")
 	put("\n  Flags:\n")
