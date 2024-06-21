@@ -837,7 +837,7 @@ func leaveOnlyAscii(content []byte) string {
 func wrap(files []os.DirEntry, width int, height int, callback func(name string, i, j int)) ([][]string, int, int) {
 	// If it's possible to fit all files in one column on a third of the screen,
 	// just use one column. Otherwise, let's squeeze listing in half of screen.
-	columns := len(files) / (height / 3)
+	columns := len(files) / max(1, height/3)
 	if columns <= 0 {
 		columns = 1
 	}
@@ -856,12 +856,11 @@ start:
 
 	for i := 0; i < columns; i++ {
 		names[i] = make([]string, rows)
-		// Columns size is going to be of max file name size.
-		max := 0
+		maxNameSize := 0        // We will use this to determine max name size, and pad names in column with spaces.
+		columnHasFiles := false // Whether we have files in this column.
 		for j := 0; j < rows; j++ {
 			if n >= len(files) {
-				columns--
-				goto start
+				break // No more files to display.
 			}
 			name := ""
 			if showIcons {
@@ -884,14 +883,21 @@ start:
 
 			n++ // Next file.
 
-			if max < strlen(name) {
-				max = strlen(name)
+			if maxNameSize < strlen(name) {
+				maxNameSize = strlen(name)
 			}
 			names[i][j] = name
+			columnHasFiles = true
 		}
+
+		if !columnHasFiles {
+			columns--
+			continue
+		}
+
 		// Append spaces to make all names in one column of same size.
 		for j := 0; j < rows; j++ {
-			names[i][j] += Repeat(" ", max-strlen(names[i][j]))
+			names[i][j] += Repeat(" ", maxNameSize-strlen(names[i][j]))
 		}
 	}
 	for j := 0; j < rows; j++ {
@@ -958,6 +964,7 @@ func usage() {
 	put("    --icons\tdisplay icons")
 	put("    --dir-only\tshow dirs only")
 	put("    --preview\tdisplay preview")
+	put("    --fuzzy\tfuzzy mode")
 	_ = w.Flush()
 	_, _ = fmt.Fprintf(os.Stderr, "\n")
 	os.Exit(1)
