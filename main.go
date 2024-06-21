@@ -837,6 +837,7 @@ func leaveOnlyAscii(content []byte) string {
 	return string(result)
 }
 
+// TODO: Write tests for this function.
 func wrap(files []os.DirEntry, width int, height int, callback func(name string, i, j int)) ([][]string, int, int) {
 	// If it's possible to fit all files in one column on a third of the screen,
 	// just use one column. Otherwise, let's squeeze listing in half of screen.
@@ -859,8 +860,7 @@ start:
 
 	for i := 0; i < columns; i++ {
 		names[i] = make([]string, rows)
-		maxNameSize := 0        // We will use this to determine max name size, and pad names in column with spaces.
-		columnHasFiles := false // Whether we have files in this column.
+		maxNameSize := 0 // We will use this to determine max name size, and pad names in column with spaces.
 		for j := 0; j < rows; j++ {
 			if n >= len(files) {
 				break // No more files to display.
@@ -890,12 +890,6 @@ start:
 				maxNameSize = strlen(name)
 			}
 			names[i][j] = name
-			columnHasFiles = true
-		}
-
-		if !columnHasFiles {
-			columns--
-			continue
 		}
 
 		// Append spaces to make all names in one column of same size.
@@ -903,6 +897,26 @@ start:
 			names[i][j] += Repeat(" ", maxNameSize-strlen(names[i][j]))
 		}
 	}
+
+	// Let's verify was all columns have at least one file.
+	for i := 0; i < columns; i++ {
+		if names[i] == nil {
+			columns--
+			goto start
+		}
+		columnHaveAtLeastOneFile := false
+		for j := 0; j < rows; j++ {
+			if names[i][j] != "" {
+				columnHaveAtLeastOneFile = true
+				break
+			}
+		}
+		if !columnHaveAtLeastOneFile {
+			columns--
+			goto start
+		}
+	}
+
 	for j := 0; j < rows; j++ {
 		row := make([]string, columns)
 		for i := 0; i < columns; i++ {
