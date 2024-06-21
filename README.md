@@ -120,6 +120,16 @@ the walk.
 export EDITOR=vim
 ```
 
+The `WALK_REMOVE_CMD` environment variable can be used to specify a command to
+be used to remove files. This is useful if you want to use a different
+command to remove files than the default `rm`.
+
+```bash
+export WALK_REMOVE_CMD=trash
+```
+
+Flags can be used to change the default behavior of the program.
+
 | Flag         | Description                |
 |--------------|----------------------------|
 | `--icons`    | Show icons                 |
