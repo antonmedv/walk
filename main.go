@@ -79,6 +79,7 @@ func main() {
 	}
 	startPreviewMode := false
 
+	argsWithoutFlags := make([]string, 0)
 	for i := 1; i < len(os.Args); i++ {
 		if os.Args[i] == "--help" || os.Args[1] == "-h" {
 			usage()
@@ -103,10 +104,12 @@ func main() {
 			fuzzyByDefault = true
 			continue
 		}
-		startPath, err = filepath.Abs(os.Args[1])
-		if err != nil {
-			panic(err)
-		}
+		argsWithoutFlags = append(argsWithoutFlags, os.Args[i])
+	}
+
+	startPath, err = filepath.Abs(argsWithoutFlags[0])
+	if err != nil {
+		panic(err)
 	}
 
 	output := termenv.NewOutput(os.Stderr)
