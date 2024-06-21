@@ -70,6 +70,7 @@ var (
 	keyDelete    = key.NewBinding(key.WithKeys("d"))
 	keyUndo      = key.NewBinding(key.WithKeys("u"))
 	keyYank      = key.NewBinding(key.WithKeys("y"))
+	keyHidden    = key.NewBinding(key.WithKeys("."))
 )
 
 func main() {
@@ -152,6 +153,7 @@ type model struct {
 	deleteCurrentFile bool                // Whether to delete current file.
 	toBeDeleted       []toDelete          // Map of files to be deleted.
 	yankSuccess       bool                // Show yank info
+	hideHidden        bool                // Hide hidden files
 }
 
 type position struct {
@@ -381,6 +383,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			clipboard.WriteAll(m.path)
 			m.yankSuccess = true
 			return m, nil
+
+		case key.Matches(msg, keyHidden):
+			m.hideHidden = !m.hideHidden
+			m.list()
 		} // End of switch statement for key presses.
 
 		m.deleteCurrentFile = false
@@ -657,10 +663,11 @@ func (m *model) list() {
 
 files:
 	for _, file := range files {
-		if dirOnly {
-			if !file.IsDir() {
-				continue
-			}
+		if m.hideHidden && HasPrefix(file.Name(), ".") {
+			continue files
+    }
+		if dirOnly && !file.IsDir() {
+			continue files
 		}
 		for _, toDelete := range m.toBeDeleted {
 			if path.Join(m.path, file.Name()) == toDelete.path {
