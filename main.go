@@ -23,21 +23,22 @@ import (
 	"github.com/sahilm/fuzzy"
 )
 
-var Version = "v1.7.0"
+var Version = "v1.8.0"
 
 const separator = "    " // Separator between columns.
 
 var (
-	warning       = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
-	preview       = lipgloss.NewStyle().PaddingLeft(2)
-	cursor        = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
-	bar           = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
-	search        = lipgloss.NewStyle().Background(lipgloss.Color("#499F1C")).Foreground(lipgloss.Color("#FFFFFF"))
-	danger        = lipgloss.NewStyle().Background(lipgloss.Color("#FF0000")).Foreground(lipgloss.Color("#FFFFFF"))
-	fileSeparator = string(filepath.Separator)
-	showIcons     = false
-	dirOnly       = false
-	strlen        = runewidth.StringWidth
+	warning        = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
+	preview        = lipgloss.NewStyle().PaddingLeft(2)
+	cursor         = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
+	bar            = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
+	search         = lipgloss.NewStyle().Background(lipgloss.Color("#499F1C")).Foreground(lipgloss.Color("#FFFFFF"))
+	danger         = lipgloss.NewStyle().Background(lipgloss.Color("#FF0000")).Foreground(lipgloss.Color("#FFFFFF"))
+	fileSeparator  = string(filepath.Separator)
+	showIcons      = false
+	dirOnly        = false
+	fuzzyByDefault = false
+	strlen         = runewidth.StringWidth
 )
 
 var (
@@ -92,10 +93,14 @@ func main() {
 		}
 		if os.Args[i] == "--dir-only" {
 			dirOnly = true
-      continue
-    }
+			continue
+		}
 		if os.Args[i] == "--preview" {
 			startPreviewMode = true
+			continue
+		}
+		if os.Args[i] == "--fuzzy" {
+			fuzzyByDefault = true
 			continue
 		}
 		startPath, err = filepath.Abs(os.Args[1])
@@ -108,10 +113,10 @@ func main() {
 	lipgloss.SetColorProfile(output.ColorProfile())
 
 	m := &model{
-		path:      startPath,
-		width:     80,
-		height:    60,
-		positions: make(map[string]position),
+		path:        startPath,
+		width:       80,
+		height:      60,
+		positions:   make(map[string]position),
 		previewMode: startPreviewMode,
 	}
 	m.list()
@@ -170,6 +175,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		if m.height < 3 {
+			m.height = 3
+		}
 		// Reset position history as c&r changes.
 		m.positions = make(map[string]position)
 		// Keep cursor at same place.
@@ -184,36 +192,36 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		if m.searchMode {
+		if fuzzyByDefault {
+			if key.Matches(msg, keyBack) {
+				if len(m.search) > 0 {
+					m.search = m.search[:strlen(m.search)-1]
+					return m, nil
+				}
+			} else if msg.Type == tea.KeyRunes {
+				m.updateSearch(msg)
+				// Save search id to clear only current search after delay.
+				// User may have already started typing next search.
+				m.searchId++
+				searchId := m.searchId
+				return m, tea.Tick(2*time.Second, func(time.Time) tea.Msg {
+					return clearSearchMsg(searchId)
+				})
+			}
+		} else if m.searchMode {
 			if key.Matches(msg, keySearch) {
 				m.searchMode = false
 				return m, nil
 			} else if key.Matches(msg, keyBack) {
 				if len(m.search) > 0 {
 					m.search = m.search[:strlen(m.search)-1]
-					return m, nil
+				} else {
+					m.searchMode = false
 				}
+				return m, nil
 			} else if msg.Type == tea.KeyRunes {
-				m.search += string(msg.Runes)
-				names := make([]string, len(m.files))
-				for i, fi := range m.files {
-					names[i] = fi.Name()
-				}
-				matches := fuzzy.Find(m.search, names)
-				if len(matches) > 0 {
-					m.matchedIndexes = matches[0].MatchedIndexes
-					index := matches[0].Index
-					m.c = index / m.rows
-					m.r = index % m.rows
-				}
-				m.updateOffset()
-				m.saveCursorPosition()
-				// Save search id to clear only current search after delay.
-				// User may have already started typing next search.
-				searchId := m.searchId
-				return m, tea.Tick(2*time.Second, func(time.Time) tea.Msg {
-					return clearSearchMsg(searchId)
-				})
+				m.updateSearch(msg)
+				return m, nil
 			}
 		}
 
@@ -232,6 +240,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case key.Matches(msg, keyOpen):
+			m.search = ""
 			m.searchMode = false
 			filePath, ok := m.filePath()
 			if !ok {
@@ -256,6 +265,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case key.Matches(msg, keyBack):
+			m.search = ""
 			m.searchMode = false
 			m.prevName = filepath.Base(m.path)
 			m.path = filepath.Join(m.path, "..")
@@ -291,33 +301,25 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.moveEnd()
 
 		case key.Matches(msg, keyVimUp):
-			if !m.searchMode {
-				m.moveUp()
-			}
+			m.moveUp()
 
 		case key.Matches(msg, keyDown):
 			m.moveDown()
 
 		case key.Matches(msg, keyVimDown):
-			if !m.searchMode {
-				m.moveDown()
-			}
+			m.moveDown()
 
 		case key.Matches(msg, keyLeft):
 			m.moveLeft()
 
 		case key.Matches(msg, keyVimLeft):
-			if !m.searchMode {
-				m.moveLeft()
-			}
+			m.moveLeft()
 
 		case key.Matches(msg, keyRight):
 			m.moveRight()
 
 		case key.Matches(msg, keyVimRight):
-			if !m.searchMode {
-				m.moveRight()
-			}
+			m.moveRight()
 
 		case key.Matches(msg, keySearch):
 			m.searchMode = true
@@ -385,6 +387,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case clearSearchMsg:
 		if m.searchId == int(msg) {
+			m.search = ""
 			m.searchMode = false
 		}
 
@@ -406,6 +409,23 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m *model) updateSearch(msg tea.KeyMsg) {
+	m.search += string(msg.Runes)
+	names := make([]string, len(m.files))
+	for i, fi := range m.files {
+		names[i] = fi.Name()
+	}
+	matches := fuzzy.Find(m.search, names)
+	if len(matches) > 0 {
+		m.matchedIndexes = matches[0].MatchedIndexes
+		index := matches[0].Index
+		m.c = index / m.rows
+		m.r = index % m.rows
+	}
+	m.updateOffset()
+	m.saveCursorPosition()
 }
 
 func (m *model) View() string {
@@ -488,9 +508,14 @@ func (m *model) View() string {
 
 	// Filter bar (green).
 	filter := ""
-	if m.searchMode {
+	if m.searchMode || fuzzyByDefault {
 		location = TrimSuffix(location, fileSeparator)
 		filter = fileSeparator + m.search
+
+		// If fuzzy is on and search is empty, don't show filter.
+		if fuzzyByDefault && m.search == "" {
+			filter = ""
+		}
 	}
 	barLen := strlen(location) + strlen(filter)
 	if barLen > outputWidth {
@@ -599,9 +624,8 @@ func (m *model) moveLeftmost() {
 
 func (m *model) moveRightmost() {
 	m.c = m.columns - 1
-	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
+	if (m.columns-1)*m.rows+m.r >= len(m.files) {
 		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
-		m.c = m.columns - 1
 	}
 }
 
@@ -665,6 +689,9 @@ func (m *model) updateOffset() {
 	// Don't scroll more than there are rows.
 	if m.offset > m.rows-height && m.rows > height {
 		m.offset = m.rows - height
+	}
+	if m.offset < 0 {
+		m.offset = 0
 	}
 }
 
@@ -815,6 +842,11 @@ func wrap(files []os.DirEntry, width int, height int, callback func(name string,
 		columns = 1
 	}
 
+	// For large lists, don't use more than 2 columns.
+	if len(files) > 100 {
+		columns = 2
+	}
+
 start:
 	// Let's try to fit everything in terminal width with this many columns.
 	// If we are not able to do it, decrease column number and goto start.
@@ -827,27 +859,31 @@ start:
 		// Columns size is going to be of max file name size.
 		max := 0
 		for j := 0; j < rows; j++ {
+			if n >= len(files) {
+				columns--
+				goto start
+			}
 			name := ""
-			if n < len(files) {
-				if showIcons {
-					info, err := files[n].Info()
-					if err == nil {
-						icon := icons.getIcon(info)
-						if icon != "" {
-							name += icon + " "
-						}
+			if showIcons {
+				info, err := files[n].Info()
+				if err == nil {
+					icon := icons.getIcon(info)
+					if icon != "" {
+						name += icon + " "
 					}
 				}
-				name += files[n].Name()
-				if callback != nil {
-					callback(files[n].Name(), i, j)
-				}
-				if files[n].IsDir() {
-					// Dirs should have a slash at the end.
-					name += fileSeparator
-				}
-				n++
 			}
+			name += files[n].Name()
+			if callback != nil {
+				callback(files[n].Name(), i, j)
+			}
+			if files[n].IsDir() {
+				// Dirs should have a slash at the end.
+				name += fileSeparator
+			}
+
+			n++ // Next file.
+
 			if max < strlen(name) {
 				max = strlen(name)
 			}
