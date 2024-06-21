@@ -990,6 +990,7 @@ func usage() {
 	put("    /\tFuzzy search")
 	put("    dd\tDelete file or dir")
 	put("    y\tYank current directory path to clipboard")
+	put("    .\tHide hidden files")
 	put("\n  Flags:\n")
 	put("    --icons\tdisplay icons")
 	put("    --dir-only\tshow dirs only")

@@ -109,6 +109,7 @@ No additional setup is required.
 | `/`              | Fuzzy search       |
 | `dd`             | Delete file or dir |
 | `y`              | yank current dir   |
+| `.`              | Hide hidden files  |
 
 ## Configuration
 
