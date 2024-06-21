@@ -409,7 +409,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if td.at.After(time.Now()) {
 				toBeDeleted = append(toBeDeleted, td)
 			} else {
-				_ = os.RemoveAll(td.path)
+				remove(td.path)
 			}
 		}
 		m.toBeDeleted = toBeDeleted
@@ -953,7 +953,7 @@ func (m *model) dontDoPendingDeletions() {
 
 func (m *model) performPendingDeletions() {
 	for _, toDelete := range m.toBeDeleted {
-		_ = os.RemoveAll(toDelete.path)
+		remove(toDelete.path)
 	}
 	m.toBeDeleted = nil
 }
@@ -974,6 +974,15 @@ func lookup(names []string, val string) string {
 		}
 	}
 	return val
+}
+
+func remove(path string) {
+	cmd, ok := os.LookupEnv("WALK_REMOVE_CMD")
+	if !ok {
+		_ = os.RemoveAll(path)
+	} else {
+		_ = exec.Command(cmd, path).Run()
+	}
 }
 
 func usage() {
@@ -1005,18 +1014,4 @@ func usage() {
 func version() {
 	fmt.Printf("\n  %s %s\n\n", cursor.Render(" walk "), Version)
 	os.Exit(0)
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
