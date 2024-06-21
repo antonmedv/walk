@@ -101,6 +101,7 @@ No additional setup is required.
 | Key binding      | Description        |
 |------------------|--------------------|
 | `arrows`, `hjkl` | Move cursor        |
+| `shift+arrows`   | Jump to start/end  |
 | `enter`          | Enter directory    |
 | `backspace`      | Exit directory     |
 | `space`          | Toggle preview     |
