@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"sort"
 	. "strings"
 	"text/tabwriter"
 	"time"
@@ -35,6 +36,7 @@ var (
 	search           = lipgloss.NewStyle().Background(lipgloss.Color("#499F1C")).Foreground(lipgloss.Color("#FFFFFF"))
 	danger           = lipgloss.NewStyle().Background(lipgloss.Color("#FF0000")).Foreground(lipgloss.Color("#FFFFFF"))
 	fileSeparator    = string(filepath.Separator)
+	ignoreCase       = false
 	showIcons        = false
 	dirOnly          = false
 	startPreviewMode = false
@@ -88,6 +90,10 @@ func main() {
 		}
 		if os.Args[i] == "--version" || os.Args[1] == "-v" {
 			version()
+		}
+		if os.Args[i] == "--ignore-case" {
+			ignoreCase = true
+			continue
 		}
 		if os.Args[i] == "--icons" {
 			showIcons = true
@@ -663,6 +669,12 @@ func (m *model) list() {
 		m.err = nil
 	}
 
+	if ignoreCase {
+		sort.Slice(files, func(i, j int) bool {
+			return ToLower(files[i].Name()) < ToLower(files[j].Name())
+		})
+	}
+
 files:
 	for _, file := range files {
 		if m.hideHidden && HasPrefix(file.Name(), ".") {
@@ -1002,6 +1014,7 @@ func usage() {
 	put("    y\tYank current directory path to clipboard")
 	put("    .\tHide hidden files")
 	put("\n  Flags:\n")
+	put("    --ignore-case\tignore case in files sorting")
 	put("    --icons\tdisplay icons")
 	put("    --dir-only\tshow dirs only")
 	put("    --preview\tdisplay preview")
