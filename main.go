@@ -848,6 +848,11 @@ func leaveOnlyAscii(content []byte) string {
 
 // TODO: Write tests for this function.
 func wrap(files []os.DirEntry, width int, height int, callback func(name string, i, j int)) ([][]string, int, int) {
+	// If the directory is empty, return no names, rows and columns.
+	if len(files) == 0 {
+		return nil, 0, 0
+	}
+
 	// If it's possible to fit all files in one column on a third of the screen,
 	// just use one column. Otherwise, let's squeeze listing in half of screen.
 	columns := len(files) / max(1, height/3)
