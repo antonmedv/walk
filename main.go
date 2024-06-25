@@ -1012,6 +1012,7 @@ func usage() {
 	put("    --dir-only\tshow dirs only")
 	put("    --preview\tdisplay preview")
 	put("    --fuzzy\tfuzzy mode")
+	put("    --hide-hidden\tdon't show hidden files")
 	_ = w.Flush()
 	_, _ = fmt.Fprintf(os.Stderr, "\n")
 	os.Exit(1)
