@@ -81,6 +81,16 @@ func main() {
 		panic(err)
 	}
 
+	m := &model{
+		path:        startPath,
+		width:       80,
+		height:      60,
+		positions:   make(map[string]position),
+		previewMode: startPreviewMode,
+	}
+
+	m.list()
+
 	argsWithoutFlags := make([]string, 0)
 	for i := 1; i < len(os.Args); i++ {
 		if os.Args[i] == "--help" || os.Args[1] == "-h" {
@@ -106,6 +116,11 @@ func main() {
 			fuzzyByDefault = true
 			continue
 		}
+		if os.Args[i] == "--hide-hidden" {
+			m.hideHidden = true
+      m.list()
+			continue
+		}
 		argsWithoutFlags = append(argsWithoutFlags, os.Args[i])
 	}
 
@@ -118,15 +133,6 @@ func main() {
 
 	output := termenv.NewOutput(os.Stderr)
 	lipgloss.SetColorProfile(output.ColorProfile())
-
-	m := &model{
-		path:        startPath,
-		width:       80,
-		height:      60,
-		positions:   make(map[string]position),
-		previewMode: startPreviewMode,
-	}
-	m.list()
 
 	p := tea.NewProgram(m, tea.WithOutput(os.Stderr))
 	if _, err := p.Run(); err != nil {
