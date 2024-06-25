@@ -23,20 +23,23 @@ import (
 	"github.com/sahilm/fuzzy"
 )
 
-var Version = "v1.7.0"
+var Version = "v1.9.0"
 
 const separator = "    " // Separator between columns.
 
 var (
-	warning       = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
-	preview       = lipgloss.NewStyle().PaddingLeft(2)
-	cursor        = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
-	bar           = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
-	search        = lipgloss.NewStyle().Background(lipgloss.Color("#499F1C")).Foreground(lipgloss.Color("#FFFFFF"))
-	danger        = lipgloss.NewStyle().Background(lipgloss.Color("#FF0000")).Foreground(lipgloss.Color("#FFFFFF"))
-	fileSeparator = string(filepath.Separator)
-	showIcons     = false
-	strlen        = runewidth.StringWidth
+	warning          = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
+	preview          = lipgloss.NewStyle().PaddingLeft(2)
+	cursor           = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
+	bar              = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
+	search           = lipgloss.NewStyle().Background(lipgloss.Color("#499F1C")).Foreground(lipgloss.Color("#FFFFFF"))
+	danger           = lipgloss.NewStyle().Background(lipgloss.Color("#FF0000")).Foreground(lipgloss.Color("#FFFFFF"))
+	fileSeparator    = string(filepath.Separator)
+	showIcons        = false
+	dirOnly          = false
+	startPreviewMode = false
+	fuzzyByDefault   = false
+	strlen           = runewidth.StringWidth
 )
 
 var (
@@ -45,6 +48,7 @@ var (
 	keyQuitQ     = key.NewBinding(key.WithKeys("q"))
 	keyOpen      = key.NewBinding(key.WithKeys("enter"))
 	keyBack      = key.NewBinding(key.WithKeys("backspace"))
+	keyFnDelete  = key.NewBinding(key.WithKeys("delete"))
 	keyUp        = key.NewBinding(key.WithKeys("up"))
 	keyDown      = key.NewBinding(key.WithKeys("down"))
 	keyLeft      = key.NewBinding(key.WithKeys("left"))
@@ -68,6 +72,7 @@ var (
 	keyDelete    = key.NewBinding(key.WithKeys("d"))
 	keyUndo      = key.NewBinding(key.WithKeys("u"))
 	keyYank      = key.NewBinding(key.WithKeys("y"))
+	keyHidden    = key.NewBinding(key.WithKeys("."))
 )
 
 func main() {
@@ -75,8 +80,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	startPreviewMode := false
 
+	argsWithoutFlags := make([]string, 0)
 	for i := 1; i < len(os.Args); i++ {
 		if os.Args[i] == "--help" || os.Args[1] == "-h" {
 			usage()
@@ -89,11 +94,23 @@ func main() {
 			parseIcons()
 			continue
 		}
+		if os.Args[i] == "--dir-only" {
+			dirOnly = true
+			continue
+		}
 		if os.Args[i] == "--preview" {
 			startPreviewMode = true
 			continue
 		}
-		startPath, err = filepath.Abs(os.Args[1])
+		if os.Args[i] == "--fuzzy" {
+			fuzzyByDefault = true
+			continue
+		}
+		argsWithoutFlags = append(argsWithoutFlags, os.Args[i])
+	}
+
+	if len(argsWithoutFlags) > 0 {
+		startPath, err = filepath.Abs(argsWithoutFlags[0])
 		if err != nil {
 			panic(err)
 		}
@@ -103,10 +120,10 @@ func main() {
 	lipgloss.SetColorProfile(output.ColorProfile())
 
 	m := &model{
-		path:      startPath,
-		width:     80,
-		height:    60,
-		positions: make(map[string]position),
+		path:        startPath,
+		width:       80,
+		height:      60,
+		positions:   make(map[string]position),
 		previewMode: startPreviewMode,
 	}
 	m.list()
@@ -139,6 +156,7 @@ type model struct {
 	deleteCurrentFile bool                // Whether to delete current file.
 	toBeDeleted       []toDelete          // Map of files to be deleted.
 	yankSuccess       bool                // Show yank info
+	hideHidden        bool                // Hide hidden files
 }
 
 type position struct {
@@ -165,6 +183,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		if m.height < 3 {
+			m.height = 3
+		}
 		// Reset position history as c&r changes.
 		m.positions = make(map[string]position)
 		// Keep cursor at same place.
@@ -179,36 +200,36 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		if m.searchMode {
+		if fuzzyByDefault {
+			if key.Matches(msg, keyBack) {
+				if len(m.search) > 0 {
+					m.search = m.search[:strlen(m.search)-1]
+					return m, nil
+				}
+			} else if msg.Type == tea.KeyRunes {
+				m.updateSearch(msg)
+				// Save search id to clear only current search after delay.
+				// User may have already started typing next search.
+				m.searchId++
+				searchId := m.searchId
+				return m, tea.Tick(2*time.Second, func(time.Time) tea.Msg {
+					return clearSearchMsg(searchId)
+				})
+			}
+		} else if m.searchMode {
 			if key.Matches(msg, keySearch) {
 				m.searchMode = false
 				return m, nil
 			} else if key.Matches(msg, keyBack) {
 				if len(m.search) > 0 {
 					m.search = m.search[:strlen(m.search)-1]
-					return m, nil
+				} else {
+					m.searchMode = false
 				}
+				return m, nil
 			} else if msg.Type == tea.KeyRunes {
-				m.search += string(msg.Runes)
-				names := make([]string, len(m.files))
-				for i, fi := range m.files {
-					names[i] = fi.Name()
-				}
-				matches := fuzzy.Find(m.search, names)
-				if len(matches) > 0 {
-					m.matchedIndexes = matches[0].MatchedIndexes
-					index := matches[0].Index
-					m.c = index / m.rows
-					m.r = index % m.rows
-				}
-				m.updateOffset()
-				m.saveCursorPosition()
-				// Save search id to clear only current search after delay.
-				// User may have already started typing next search.
-				searchId := m.searchId
-				return m, tea.Tick(2*time.Second, func(time.Time) tea.Msg {
-					return clearSearchMsg(searchId)
-				})
+				m.updateSearch(msg)
+				return m, nil
 			}
 		}
 
@@ -227,6 +248,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case key.Matches(msg, keyOpen):
+			m.search = ""
 			m.searchMode = false
 			filePath, ok := m.filePath()
 			if !ok {
@@ -251,6 +273,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case key.Matches(msg, keyBack):
+			m.search = ""
 			m.searchMode = false
 			m.prevName = filepath.Base(m.path)
 			m.path = filepath.Join(m.path, "..")
@@ -286,33 +309,25 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.moveEnd()
 
 		case key.Matches(msg, keyVimUp):
-			if !m.searchMode {
-				m.moveUp()
-			}
+			m.moveUp()
 
 		case key.Matches(msg, keyDown):
 			m.moveDown()
 
 		case key.Matches(msg, keyVimDown):
-			if !m.searchMode {
-				m.moveDown()
-			}
+			m.moveDown()
 
 		case key.Matches(msg, keyLeft):
 			m.moveLeft()
 
 		case key.Matches(msg, keyVimLeft):
-			if !m.searchMode {
-				m.moveLeft()
-			}
+			m.moveLeft()
 
 		case key.Matches(msg, keyRight):
 			m.moveRight()
 
 		case key.Matches(msg, keyVimRight):
-			if !m.searchMode {
-				m.moveRight()
-			}
+			m.moveRight()
 
 		case key.Matches(msg, keySearch):
 			m.searchMode = true
@@ -338,7 +353,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.ExitAltScreen
 			}
 
-		case key.Matches(msg, keyDelete):
+		case key.Matches(msg, keyDelete, keyFnDelete):
 			filePathToDelete, ok := m.filePath()
 			if ok {
 				if m.deleteCurrentFile {
@@ -371,6 +386,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			clipboard.WriteAll(m.path)
 			m.yankSuccess = true
 			return m, nil
+
+		case key.Matches(msg, keyHidden):
+			m.hideHidden = !m.hideHidden
+			m.list()
 		} // End of switch statement for key presses.
 
 		m.deleteCurrentFile = false
@@ -380,6 +399,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case clearSearchMsg:
 		if m.searchId == int(msg) {
+			m.search = ""
 			m.searchMode = false
 		}
 
@@ -389,7 +409,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if td.at.After(time.Now()) {
 				toBeDeleted = append(toBeDeleted, td)
 			} else {
-				_ = os.RemoveAll(td.path)
+				remove(td.path)
 			}
 		}
 		m.toBeDeleted = toBeDeleted
@@ -401,6 +421,23 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m *model) updateSearch(msg tea.KeyMsg) {
+	m.search += string(msg.Runes)
+	names := make([]string, len(m.files))
+	for i, fi := range m.files {
+		names[i] = fi.Name()
+	}
+	matches := fuzzy.Find(m.search, names)
+	if len(matches) > 0 {
+		m.matchedIndexes = matches[0].MatchedIndexes
+		index := matches[0].Index
+		m.c = index / m.rows
+		m.r = index % m.rows
+	}
+	m.updateOffset()
+	m.saveCursorPosition()
 }
 
 func (m *model) View() string {
@@ -483,9 +520,13 @@ func (m *model) View() string {
 
 	// Filter bar (green).
 	filter := ""
-	if m.searchMode {
-		location = TrimSuffix(location, fileSeparator)
+	if m.searchMode || fuzzyByDefault {
 		filter = fileSeparator + m.search
+
+		// If fuzzy is on and search is empty, don't show filter.
+		if fuzzyByDefault && m.search == "" {
+			filter = ""
+		}
 	}
 	barLen := strlen(location) + strlen(filter)
 	if barLen > outputWidth {
@@ -594,9 +635,8 @@ func (m *model) moveLeftmost() {
 
 func (m *model) moveRightmost() {
 	m.c = m.columns - 1
-	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
+	if (m.columns-1)*m.rows+m.r >= len(m.files) {
 		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
-		m.c = m.columns - 1
 	}
 }
 
@@ -625,6 +665,12 @@ func (m *model) list() {
 
 files:
 	for _, file := range files {
+		if m.hideHidden && HasPrefix(file.Name(), ".") {
+			continue files
+		}
+		if dirOnly && !file.IsDir() {
+			continue files
+		}
 		for _, toDelete := range m.toBeDeleted {
 			if path.Join(m.path, file.Name()) == toDelete.path {
 				continue files
@@ -655,6 +701,9 @@ func (m *model) updateOffset() {
 	// Don't scroll more than there are rows.
 	if m.offset > m.rows-height && m.rows > height {
 		m.offset = m.rows - height
+	}
+	if m.offset < 0 {
+		m.offset = 0
 	}
 }
 
@@ -797,12 +846,23 @@ func leaveOnlyAscii(content []byte) string {
 	return string(result)
 }
 
+// TODO: Write tests for this function.
 func wrap(files []os.DirEntry, width int, height int, callback func(name string, i, j int)) ([][]string, int, int) {
 	// If it's possible to fit all files in one column on a third of the screen,
 	// just use one column. Otherwise, let's squeeze listing in half of screen.
-	columns := len(files) / (height / 3)
+	columns := len(files) / max(1, height/3)
 	if columns <= 0 {
 		columns = 1
+	}
+
+	// For large lists, don't use more than 2 columns.
+	if len(files) > 100 {
+		columns = 2
+	}
+
+	// Fifteenth column is enough for everyone.
+	if columns > 15 {
+		columns = 15
 	}
 
 start:
@@ -814,40 +874,63 @@ start:
 
 	for i := 0; i < columns; i++ {
 		names[i] = make([]string, rows)
-		// Columns size is going to be of max file name size.
-		max := 0
+		maxNameSize := 0 // We will use this to determine max name size, and pad names in column with spaces.
 		for j := 0; j < rows; j++ {
+			if n >= len(files) {
+				break // No more files to display.
+			}
 			name := ""
-			if n < len(files) {
-				if showIcons {
-					info, err := files[n].Info()
-					if err == nil {
-						icon := icons.getIcon(info)
-						if icon != "" {
-							name += icon + " "
-						}
+			if showIcons {
+				info, err := files[n].Info()
+				if err == nil {
+					icon := icons.getIcon(info)
+					if icon != "" {
+						name += icon + " "
 					}
 				}
-				name += files[n].Name()
-				if callback != nil {
-					callback(files[n].Name(), i, j)
-				}
-				if files[n].IsDir() {
-					// Dirs should have a slash at the end.
-					name += fileSeparator
-				}
-				n++
 			}
-			if max < strlen(name) {
-				max = strlen(name)
+			name += files[n].Name()
+			if callback != nil {
+				callback(files[n].Name(), i, j)
+			}
+			if files[n].IsDir() {
+				// Dirs should have a slash at the end.
+				name += fileSeparator
+			}
+
+			n++ // Next file.
+
+			if maxNameSize < strlen(name) {
+				maxNameSize = strlen(name)
 			}
 			names[i][j] = name
 		}
+
 		// Append spaces to make all names in one column of same size.
 		for j := 0; j < rows; j++ {
-			names[i][j] += Repeat(" ", max-strlen(names[i][j]))
+			names[i][j] += Repeat(" ", maxNameSize-strlen(names[i][j]))
 		}
 	}
+
+	// Let's verify was all columns have at least one file.
+	for i := 0; i < columns; i++ {
+		if names[i] == nil {
+			columns--
+			goto start
+		}
+		columnHaveAtLeastOneFile := false
+		for j := 0; j < rows; j++ {
+			if names[i][j] != "" {
+				columnHaveAtLeastOneFile = true
+				break
+			}
+		}
+		if !columnHaveAtLeastOneFile {
+			columns--
+			goto start
+		}
+	}
+
 	for j := 0; j < rows; j++ {
 		row := make([]string, columns)
 		for i := 0; i < columns; i++ {
@@ -870,7 +953,7 @@ func (m *model) dontDoPendingDeletions() {
 
 func (m *model) performPendingDeletions() {
 	for _, toDelete := range m.toBeDeleted {
-		_ = os.RemoveAll(toDelete.path)
+		remove(toDelete.path)
 	}
 	m.toBeDeleted = nil
 }
@@ -893,24 +976,36 @@ func lookup(names []string, val string) string {
 	return val
 }
 
+func remove(path string) {
+	cmd, ok := os.LookupEnv("WALK_REMOVE_CMD")
+	if !ok {
+		_ = os.RemoveAll(path)
+	} else {
+		_ = exec.Command(cmd, path).Run()
+	}
+}
+
 func usage() {
 	_, _ = fmt.Fprintf(os.Stderr, "\n  "+cursor.Render(" walk ")+"\n\n  Usage: walk [path]\n\n")
 	w := tabwriter.NewWriter(os.Stderr, 0, 8, 2, ' ', 0)
 	put := func(s string) {
 		_, _ = fmt.Fprintln(w, s)
 	}
-	put("    Arrows, hjkl\tMove cursor")
-	put("    Enter\tEnter directory")
-	put("    Backspace\tExit directory")
-	put("    Space\tToggle preview")
-	put("    Esc, q\tExit with cd")
-	put("    Ctrl+c\tExit without cd")
+	put("    arrows, hjkl\tMove cursor")
+	put("    enter\tEnter directory")
+	put("    backspace\tExit directory")
+	put("    space\tToggle preview")
+	put("    esc, q\tExit with cd")
+	put("    ctrl+c\tExit without cd")
 	put("    /\tFuzzy search")
-	put("    dd\tDelete file or dir")
+	put("    d, delete\tDelete file or dir")
 	put("    y\tYank current directory path to clipboard")
+	put("    .\tHide hidden files")
 	put("\n  Flags:\n")
 	put("    --icons\tdisplay icons")
+	put("    --dir-only\tshow dirs only")
 	put("    --preview\tdisplay preview")
+	put("    --fuzzy\tfuzzy mode")
 	_ = w.Flush()
 	_, _ = fmt.Fprintf(os.Stderr, "\n")
 	os.Exit(1)
@@ -919,18 +1014,4 @@ func usage() {
 func version() {
 	fmt.Printf("\n  %s %s\n\n", cursor.Render(" walk "), Version)
 	os.Exit(0)
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

@@ -25,10 +25,6 @@ pkg_add walk
 ```
 
 ```
-pacman -S walk
-```
-
-```
 go install github.com/antonmedv/walk@latest
 ```
 
@@ -76,27 +72,6 @@ function lk() {
 
 Now use `lk` command to start walking.
 
-## Usage
-
-| Key binding      | Description        |
-|------------------|--------------------|
-| `Arrows`, `hjkl` | Move cursor        |
-| `Enter`          | Enter directory    |
-| `Backspace`      | Exit directory     |
-| `Space`          | Toggle preview     |
-| `Esc`, `q`       | Exit with cd       |
-| `Ctrl+c`         | Exit without cd    |
-| `/`              | Fuzzy search       |
-| `dd`             | Delete file or dir |
-| `y`              | yank current dir   |
-
-The `EDITOR` or `WALK_EDITOR` environment variable used for opening files from
-the walk.
-
-```bash
-export EDITOR=vim
-```
-
 ### Preview mode
 
 Press `Space` to toggle preview mode.
@@ -121,9 +96,47 @@ No additional setup is required.
 
 <img src=".github/images/images-mode.gif" width="600" alt="Walk Image Preview">
 
-## Become a sponsor
+## Usage
 
-Every line of code in my repositories 📖 signifies my unwavering commitment to open source 💡. Your support 🤝 ensures these projects keep thriving, innovating, and benefiting all 💼. If my work has ever resonated 🎵 or helped you, kindly consider showing love ❤️ by sponsoring. [**🚀 Sponsor Me Today! 🚀**](https://github.com/sponsors/antonmedv)
+| Key binding      | Description        |
+|------------------|--------------------|
+| `arrows`, `hjkl` | Move cursor        |
+| `shift+arrows`   | Jump to start/end  |
+| `enter`          | Enter directory    |
+| `backspace`      | Exit directory     |
+| `space`          | Toggle preview     |
+| `esc`, `q`       | Exit with cd       |
+| `ctrl+c`         | Exit without cd    |
+| `/`              | Fuzzy search       |
+| `d`, `delete`    | Delete file or dir |
+| `y`              | yank current dir   |
+| `.`              | Hide hidden files  |
+
+## Configuration
+
+The `EDITOR` or `WALK_EDITOR` environment variable used for opening files from
+the walk.
+
+```bash
+export EDITOR=vim
+```
+
+The `WALK_REMOVE_CMD` environment variable can be used to specify a command to
+be used to remove files. This is useful if you want to use a different
+command to remove files than the default `rm`.
+
+```bash
+export WALK_REMOVE_CMD=trash
+```
+
+Flags can be used to change the default behavior of the program.
+
+| Flag         | Description                |
+|--------------|----------------------------|
+| `--icons`    | Show icons                 |
+| `--dir-only` | Show dirs only             |
+| `--preview`  | Start with preview mode on |
+| `--fuzzy`    | Start with fuzzy search on |
 
 ## License
 
