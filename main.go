@@ -23,7 +23,7 @@ import (
 	"github.com/sahilm/fuzzy"
 )
 
-var Version = "1.10.0"
+var Version = "v1.10.0"
 
 const separator = "    " // Separator between columns.
 
