@@ -23,11 +23,12 @@ import (
 	"github.com/sahilm/fuzzy"
 )
 
-var Version = "v1.9.0"
+var Version = "1.10.0"
 
 const separator = "    " // Separator between columns.
 
 var (
+	bold             = lipgloss.NewStyle().Bold(true)
 	warning          = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
 	preview          = lipgloss.NewStyle().PaddingLeft(2)
 	cursor           = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
@@ -997,7 +998,7 @@ func remove(path string) {
 }
 
 func usage() {
-	_, _ = fmt.Fprintf(os.Stderr, "\n  "+cursor.Render(" walk ")+"\n\n  Usage: walk [path]\n\n")
+	_, _ = fmt.Fprintf(os.Stderr, "\n  "+bold.Render("walk "+Version)+"\n\n  Usage: walk [path]\n\n")
 	w := tabwriter.NewWriter(os.Stderr, 0, 8, 2, ' ', 0)
 	put := func(s string) {
 		_, _ = fmt.Fprintln(w, s)
@@ -1023,6 +1024,6 @@ func usage() {
 }
 
 func version() {
-	fmt.Printf("\n  %s %s\n\n", cursor.Render(" walk "), Version)
+	fmt.Printf("%s\n", Version)
 	os.Exit(0)
 }
