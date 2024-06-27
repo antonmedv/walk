@@ -200,6 +200,14 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		// Make undo work even if we are in fuzzy mode.
+		if key.Matches(msg, keyUndo) && len(m.toBeDeleted) > 0 {
+			m.toBeDeleted = m.toBeDeleted[:len(m.toBeDeleted)-1]
+			m.list()
+			m.previewContent = ""
+			return m, nil
+		}
+
 		if fuzzyByDefault {
 			if key.Matches(msg, keyBack) {
 				if len(m.search) > 0 {
@@ -372,14 +380,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 			return m, nil
-
-		case key.Matches(msg, keyUndo):
-			if len(m.toBeDeleted) > 0 {
-				m.toBeDeleted = m.toBeDeleted[:len(m.toBeDeleted)-1]
-				m.list()
-				m.previewContent = ""
-				return m, nil
-			}
 
 		case key.Matches(msg, keyYank):
 			// copy path to clipboard
@@ -860,6 +860,10 @@ func wrap(files []os.DirEntry, width int, height int, callback func(name string,
 		columns = 1
 	}
 
+	// Max number of files to display in one column is 10 or 4 columns in total.
+	columnsEstimate := int(math.Ceil(float64(len(files)) / 10))
+	columns = max(columns, min(columnsEstimate, 4))
+
 	// For large lists, don't use more than 2 columns.
 	if len(files) > 100 {
 		columns = 2
@@ -982,12 +986,14 @@ func lookup(names []string, val string) string {
 }
 
 func remove(path string) {
-	cmd, ok := os.LookupEnv("WALK_REMOVE_CMD")
-	if !ok {
-		_ = os.RemoveAll(path)
-	} else {
-		_ = exec.Command(cmd, path).Run()
-	}
+	go func() {
+		cmd, ok := os.LookupEnv("WALK_REMOVE_CMD")
+		if !ok {
+			_ = os.RemoveAll(path)
+		} else {
+			_ = exec.Command(cmd, path).Run()
+		}
+	}()
 }
 
 func usage() {
