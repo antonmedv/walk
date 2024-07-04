@@ -137,6 +137,7 @@ Flags can be used to change the default behavior of the program.
 | `--dir-only` | Show dirs only             |
 | `--preview`  | Start with preview mode on |
 | `--fuzzy`    | Start with fuzzy search on |
+| `--hide-hidden` | don't show hidden files |
 
 ## License
 
