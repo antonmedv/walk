@@ -756,11 +756,14 @@ func (m *model) preview() {
 	}
 	filePath, ok := m.filePath()
 	if !ok {
+		// Normally this should not happen
+		m.previewContent = warning.Render("Invalid file to preview")
 		return
 	}
 
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
+		m.previewContent = warning.Render(err.Error())
 		return
 	}
 
@@ -770,7 +773,13 @@ func (m *model) preview() {
 	if fileInfo.IsDir() {
 		files, err := os.ReadDir(filePath)
 		if err != nil {
-			m.previewContent = err.Error()
+			m.previewContent = warning.Render(err.Error())
+			return
+		}
+
+		if len(files) == 0 {
+			m.previewContent = warning.Render("No files")
+			return
 		}
 
 		names, rows, columns := wrap(files, width, height, nil)
