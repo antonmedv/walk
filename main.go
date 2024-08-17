@@ -1043,6 +1043,11 @@ func usage() {
 		_, _ = fmt.Fprintln(w, s)
 	}
 	put("    arrows, hjkl\tMove cursor")
+	put("    shitf+arrows\tMove most to direction")
+	put("    pgup, g\tGo to column top")
+	put("    pgdown, G\tGo to column bottom")
+	put("    home\tGo to beginning")
+	put("    end\tGo to end")
 	put("    enter\tEnter directory")
 	put("    backspace\tExit directory")
 	put("    space\tToggle preview")
