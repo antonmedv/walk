@@ -30,9 +30,14 @@ var Version = "v1.10.0"
 const separator = "    " // Separator between columns.
 
 var (
-	bold             = lipgloss.NewStyle().Bold(true)
-	warning          = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
-	preview          = lipgloss.NewStyle().PaddingLeft(2)
+	bold    = lipgloss.NewStyle().Bold(true)
+	warning = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
+	preview = lipgloss.NewStyle().
+		MarginLeft(2).
+		PaddingLeft(2).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("#825DF2")).
+		BorderLeft(true)
 	cursor           = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
 	bar              = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
 	search           = lipgloss.NewStyle().Background(lipgloss.Color("#499F1C")).Foreground(lipgloss.Color("#FFFFFF"))
