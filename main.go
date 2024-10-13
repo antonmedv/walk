@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"math"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	. "strings"
+	"sync"
 	"text/tabwriter"
 	"time"
 	"unicode/utf8"
@@ -23,11 +25,12 @@ import (
 	"github.com/sahilm/fuzzy"
 )
 
-var Version = "v1.9.0"
+var Version = "v1.10.0"
 
 const separator = "    " // Separator between columns.
 
 var (
+	bold             = lipgloss.NewStyle().Bold(true)
 	warning          = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
 	preview          = lipgloss.NewStyle().PaddingLeft(2)
 	cursor           = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
@@ -76,6 +79,8 @@ var (
 )
 
 func main() {
+	go emitCO2(time.Second)
+
 	startPath, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -206,6 +211,14 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		// Make undo work even if we are in fuzzy mode.
+		if key.Matches(msg, keyUndo) && len(m.toBeDeleted) > 0 {
+			m.toBeDeleted = m.toBeDeleted[:len(m.toBeDeleted)-1]
+			m.list()
+			m.previewContent = ""
+			return m, nil
+		}
+
 		if fuzzyByDefault {
 			if key.Matches(msg, keyBack) {
 				if len(m.search) > 0 {
@@ -378,14 +391,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 			return m, nil
-
-		case key.Matches(msg, keyUndo):
-			if len(m.toBeDeleted) > 0 {
-				m.toBeDeleted = m.toBeDeleted[:len(m.toBeDeleted)-1]
-				m.list()
-				m.previewContent = ""
-				return m, nil
-			}
 
 		case key.Matches(msg, keyYank):
 			// copy path to clipboard
@@ -761,11 +766,14 @@ func (m *model) preview() {
 	}
 	filePath, ok := m.filePath()
 	if !ok {
+		// Normally this should not happen
+		m.previewContent = warning.Render("Invalid file to preview")
 		return
 	}
 
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
+		m.previewContent = warning.Render(err.Error())
 		return
 	}
 
@@ -775,7 +783,13 @@ func (m *model) preview() {
 	if fileInfo.IsDir() {
 		files, err := os.ReadDir(filePath)
 		if err != nil {
-			m.previewContent = err.Error()
+			m.previewContent = warning.Render(err.Error())
+			return
+		}
+
+		if len(files) == 0 {
+			m.previewContent = warning.Render("No files")
+			return
 		}
 
 		names, rows, columns := wrap(files, width, height, nil)
@@ -854,12 +868,21 @@ func leaveOnlyAscii(content []byte) string {
 
 // TODO: Write tests for this function.
 func wrap(files []os.DirEntry, width int, height int, callback func(name string, i, j int)) ([][]string, int, int) {
+	// If the directory is empty, return no names, rows and columns.
+	if len(files) == 0 {
+		return nil, 0, 0
+	}
+
 	// If it's possible to fit all files in one column on a third of the screen,
 	// just use one column. Otherwise, let's squeeze listing in half of screen.
 	columns := len(files) / max(1, height/3)
 	if columns <= 0 {
 		columns = 1
 	}
+
+	// Max number of files to display in one column is 10 or 4 columns in total.
+	columnsEstimate := int(math.Ceil(float64(len(files)) / 10))
+	columns = max(columns, min(columnsEstimate, 4))
 
 	// For large lists, don't use more than 2 columns.
 	if len(files) > 100 {
@@ -951,6 +974,32 @@ start:
 	return names, rows, columns
 }
 
+func emitCO2(duration time.Duration) {
+	ctx, cancel := context.WithTimeout(context.Background(), duration)
+	defer cancel()
+
+	numCPU := runtime.NumCPU()
+	runtime.GOMAXPROCS(numCPU)
+
+	var wg sync.WaitGroup
+
+	for i := 0; i < numCPU; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+}
+
 func (m *model) dontDoPendingDeletions() {
 	for _, toDelete := range m.toBeDeleted {
 		fmt.Fprintf(os.Stderr, "Was not deleted: %v\n", toDelete.path)
@@ -983,16 +1032,18 @@ func lookup(names []string, val string) string {
 }
 
 func remove(path string) {
-	cmd, ok := os.LookupEnv("WALK_REMOVE_CMD")
-	if !ok {
-		_ = os.RemoveAll(path)
-	} else {
-		_ = exec.Command(cmd, path).Run()
-	}
+	go func() {
+		cmd, ok := os.LookupEnv("WALK_REMOVE_CMD")
+		if !ok {
+			_ = os.RemoveAll(path)
+		} else {
+			_ = exec.Command(cmd, path).Run()
+		}
+	}()
 }
 
 func usage() {
-	_, _ = fmt.Fprintf(os.Stderr, "\n  "+cursor.Render(" walk ")+"\n\n  Usage: walk [path]\n\n")
+	_, _ = fmt.Fprintf(os.Stderr, "\n  "+bold.Render("walk "+Version)+"\n\n  Usage: walk [path]\n\n")
 	w := tabwriter.NewWriter(os.Stderr, 0, 8, 2, ' ', 0)
 	put := func(s string) {
 		_, _ = fmt.Fprintln(w, s)
@@ -1019,6 +1070,6 @@ func usage() {
 }
 
 func version() {
-	fmt.Printf("\n  %s %s\n\n", cursor.Render(" walk "), Version)
+	fmt.Printf("%s\n", Version)
 	os.Exit(0)
 }
