@@ -26,6 +26,8 @@ go install github.com/antonmedv/walk@latest
 
 Or download [prebuild binaries](https://github.com/antonmedv/walk/releases).
 
+### Setup
+
 Put the next function into the **.bashrc** or a similar config:
 
 <table>
