@@ -30,13 +30,25 @@ var Version = "v1.10.1"
 const separator = "    " // Separator between columns.
 
 var (
-	bold             = lipgloss.NewStyle().Bold(true)
-	warning          = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
-	preview          = lipgloss.NewStyle().PaddingLeft(2)
-	cursor           = lipgloss.NewStyle().Background(lipgloss.Color("#825DF2")).Foreground(lipgloss.Color("#FFFFFF"))
-	bar              = lipgloss.NewStyle().Background(lipgloss.Color("#5C5C5C")).Foreground(lipgloss.Color("#FFFFFF"))
-	search           = lipgloss.NewStyle().Background(lipgloss.Color("#499F1C")).Foreground(lipgloss.Color("#FFFFFF"))
-	danger           = lipgloss.NewStyle().Background(lipgloss.Color("#FF0000")).Foreground(lipgloss.Color("#FFFFFF"))
+	mainColor   = lipgloss.Color("#825DF2")
+	barColor    = lipgloss.Color("#5C5C5C")
+	searchColor = lipgloss.Color("#499F1C")
+	bold        = lipgloss.NewStyle().Bold(true)
+	warning     = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
+	cursor      = lipgloss.NewStyle().Background(mainColor).Foreground(lipgloss.Color("#FFFFFF"))
+	bar         = lipgloss.NewStyle().Background(barColor).Foreground(lipgloss.Color("#FFFFFF"))
+	search      = lipgloss.NewStyle().Background(searchColor).Foreground(lipgloss.Color("#FFFFFF"))
+	danger      = lipgloss.NewStyle().Background(lipgloss.Color("#FF0000")).Foreground(lipgloss.Color("#FFFFFF"))
+
+	previewPlain = lipgloss.NewStyle().PaddingLeft(2)
+	previewSplit = lipgloss.NewStyle().
+			MarginLeft(1).
+			PaddingLeft(1).
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(mainColor).
+			BorderLeft(true)
+	preview = previewPlain
+
 	fileSeparator    = string(filepath.Separator)
 	showIcons        = false
 	dirOnly          = false
@@ -116,6 +128,10 @@ func main() {
 			hideHiddenFlag = true
 			continue
 		}
+		if os.Args[i] == "--with-border" {
+			preview = previewSplit
+			continue
+		}
 		argsWithoutFlags = append(argsWithoutFlags, os.Args[i])
 	}
 
@@ -139,7 +155,13 @@ func main() {
 	}
 	m.list()
 
-	p := tea.NewProgram(m, tea.WithOutput(os.Stderr))
+	opts := []tea.ProgramOption{
+		tea.WithOutput(os.Stderr),
+	}
+	if m.previewMode {
+		opts = append(opts, tea.WithAltScreen())
+	}
+	p := tea.NewProgram(m, opts...)
 	if _, err := p.Run(); err != nil {
 		panic(err)
 	}
@@ -1061,7 +1083,9 @@ func usage() {
 	put("\n  Flags:\n")
 	put("    --icons\tdisplay icons")
 	put("    --dir-only\tshow dirs only")
+	put("    --hide-hidden\thide hidden files")
 	put("    --preview\tdisplay preview")
+	put("    --with-border\tpreview with border")
 	put("    --fuzzy\tfuzzy mode")
 	_ = w.Flush()
 	_, _ = fmt.Fprintf(os.Stderr, "\n")
