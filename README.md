@@ -8,7 +8,7 @@
 
 **Walk** — a terminal navigator; a `cd` and `ls` replacement.
 
-Run `lk`, navigate using arrows or hjkl. Press, `Esc` to jump to a new location; or `ctrl+c` to stay.
+Run `lk`, navigate using arrows or hjkl. Press, `esc` to jump to a new location; or `ctrl+c` to stay.
 
 ## Install
 
