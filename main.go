@@ -188,7 +188,7 @@ type model struct {
 	previewContent    string              // Content of preview.
 	deleteCurrentFile bool                // Whether to delete current file.
 	toBeDeleted       []toDelete          // Map of files to be deleted.
-	yankSuccess       bool                // Show yank info
+	yankedFilePath    string              // Show yank info
 	hideHidden        bool                // Hide hidden files
 }
 
@@ -415,9 +415,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, keyYank):
-			// copy path to clipboard
-			clipboard.WriteAll(m.path)
-			m.yankSuccess = true
+			filePath, ok := m.filePath()
+			if ok {
+				clipboard.WriteAll(filePath)
+				m.yankedFilePath = filePath
+			}
 			return m, nil
 
 		case key.Matches(msg, keyHidden):
@@ -426,7 +428,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} // End of switch statement for key presses.
 
 		m.deleteCurrentFile = false
-		m.yankSuccess = false
+		m.yankedFilePath = ""
 		m.updateOffset()
 		m.saveCursorPosition()
 
@@ -584,8 +586,8 @@ func (m *model) View() string {
 	}
 
 	// Yank success.
-	if m.yankSuccess {
-		yankBar := fmt.Sprintf("yanked path to clipboard: %v", m.path)
+	if m.yankedFilePath != "" {
+		yankBar := fmt.Sprintf("copied: %v", m.yankedFilePath)
 		main += "\n" + bar.Render(yankBar)
 	}
 
@@ -1078,7 +1080,7 @@ func usage() {
 	put("    ctrl+c\tExit without cd")
 	put("    /\tFuzzy search")
 	put("    d, delete\tDelete file or dir")
-	put("    y\tYank current directory path to clipboard")
+	put("    y\tCopy to clipboard")
 	put("    .\tHide hidden files")
 	put("\n  Flags:\n")
 	put("    --icons\tdisplay icons")
