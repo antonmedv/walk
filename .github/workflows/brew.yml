@@ -13,9 +13,6 @@ jobs:
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@master
 
-      - name: Configure Git user
-        uses: Homebrew/actions/git-user-config@master
-
       - name: Bump formulae
         uses: Homebrew/actions/bump-packages@master
         with:
