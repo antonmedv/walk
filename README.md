@@ -70,6 +70,8 @@ function lk() {
 
 Now use `lk` command to start walking.
 
+## Features
+
 ### Preview mode
 
 Press `Space` to toggle preview mode.
