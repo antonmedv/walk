@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/fs"
 	"math"
 	"os"
@@ -89,6 +90,7 @@ var (
 	keyUndo      = key.NewBinding(key.WithKeys("u"))
 	keyYank      = key.NewBinding(key.WithKeys("y"))
 	keyHidden    = key.NewBinding(key.WithKeys("."))
+	keyHelp      = key.NewBinding(key.WithKeys("?"))
 )
 
 func main() {
@@ -102,7 +104,8 @@ func main() {
 	argsWithoutFlags := make([]string, 0)
 	for i := 1; i < len(os.Args); i++ {
 		if os.Args[i] == "--help" || os.Args[1] == "-h" {
-			usage()
+			usage(os.Stderr, true)
+			os.Exit(1)
 		}
 		if os.Args[i] == "--version" || os.Args[1] == "-v" {
 			version()
@@ -190,6 +193,7 @@ type model struct {
 	toBeDeleted       []toDelete          // Map of files to be deleted.
 	yankedFilePath    string              // Show yank info
 	hideHidden        bool                // Hide hidden files
+	showHelp          bool                // Show help
 }
 
 type position struct {
@@ -422,12 +426,18 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
+		case key.Matches(msg, keyHelp):
+			m.showHelp = !m.showHelp
+			return m, nil
+
 		case key.Matches(msg, keyHidden):
 			m.hideHidden = !m.hideHidden
 			m.list()
+
 		} // End of switch statement for key presses.
 
 		m.deleteCurrentFile = false
+		m.showHelp = false
 		m.yankedFilePath = ""
 		m.updateOffset()
 		m.saveCursorPosition()
@@ -476,6 +486,13 @@ func (m *model) updateSearch(msg tea.KeyMsg) {
 }
 
 func (m *model) View() string {
+	if m.showHelp {
+		out := &Builder{}
+		out.WriteString(bar.Render("help") + "\n\n")
+		usage(out, false)
+		return out.String()
+	}
+
 	width := m.width
 	if m.previewMode {
 		width = m.width / 2
@@ -1066,9 +1083,11 @@ func remove(path string) {
 	}()
 }
 
-func usage() {
-	_, _ = fmt.Fprintf(os.Stderr, "\n  "+bold.Render("walk "+Version)+"\n\n  Usage: walk [path]\n\n")
-	w := tabwriter.NewWriter(os.Stderr, 0, 8, 2, ' ', 0)
+func usage(out io.Writer, full bool) {
+	if full {
+		_, _ = fmt.Fprintf(out, "\n  "+bold.Render("walk "+Version)+"\n\n  Usage: walk [path]\n\n")
+	}
+	w := tabwriter.NewWriter(out, 0, 8, 2, ' ', 0)
 	put := func(s string) {
 		_, _ = fmt.Fprintln(w, s)
 	}
@@ -1082,16 +1101,18 @@ func usage() {
 	put("    d, delete\tDelete file or dir")
 	put("    y\tCopy to clipboard")
 	put("    .\tHide hidden files")
-	put("\n  Flags:\n")
-	put("    --icons\tdisplay icons")
-	put("    --dir-only\tshow dirs only")
-	put("    --hide-hidden\thide hidden files")
-	put("    --preview\tdisplay preview")
-	put("    --with-border\tpreview with border")
-	put("    --fuzzy\tfuzzy mode")
+	put("    ?\tShow help")
+	if full {
+		put("\n  Flags:\n")
+		put("    --icons\tdisplay icons")
+		put("    --dir-only\tshow dirs only")
+		put("    --hide-hidden\thide hidden files")
+		put("    --preview\tdisplay preview")
+		put("    --with-border\tpreview with border")
+		put("    --fuzzy\tfuzzy mode")
+	}
 	_ = w.Flush()
-	_, _ = fmt.Fprintf(os.Stderr, "\n")
-	os.Exit(1)
+	_, _ = fmt.Fprintf(out, "\n")
 }
 
 func version() {
