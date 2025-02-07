@@ -42,6 +42,7 @@ var (
 	dirOnly          = false
 	startPreviewMode = false
 	fuzzyByDefault   = false
+	hideHiddenFlag   = false
 	strlen           = runewidth.StringWidth
 )
 
@@ -111,6 +112,10 @@ func main() {
 			fuzzyByDefault = true
 			continue
 		}
+		if os.Args[i] == "--hide-hidden" {
+			hideHiddenFlag = true
+			continue
+		}
 		argsWithoutFlags = append(argsWithoutFlags, os.Args[i])
 	}
 
@@ -130,6 +135,7 @@ func main() {
 		height:      60,
 		positions:   make(map[string]position),
 		previewMode: startPreviewMode,
+		hideHidden:  hideHiddenFlag,
 	}
 	m.list()
 

@@ -131,12 +131,13 @@ export WALK_REMOVE_CMD=trash
 
 Flags can be used to change the default behavior of the program.
 
-| Flag         | Description                |
-|--------------|----------------------------|
-| `--icons`    | Show icons                 |
-| `--dir-only` | Show dirs only             |
-| `--preview`  | Start with preview mode on |
-| `--fuzzy`    | Start with fuzzy search on |
+| Flag            | Description                  |
+|-----------------|------------------------------|
+| `--icons`       | Show icons                   |
+| `--dir-only`    | Show dirs only               |
+| `--preview`     | Start with preview mode on   |
+| `--fuzzy`       | Start with fuzzy search on   |
+| `--hide-hidden` | Hide hidden files by default |
 
 ## License
 
