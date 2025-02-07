@@ -1,6 +1,7 @@
 $.verbose = true
 
 const bin = 'walk'
+const repo = 'antonmedv/walk'
 const goos = [
   'linux',
   'darwin',
@@ -13,7 +14,7 @@ const goarch = [
 
 const name = (GOOS, GOARCH) => `${bin}_${GOOS}_${GOARCH}` + (GOOS === 'windows' ? '.exe' : '')
 
-const resp = await fetch('https://api.github.com/repos/antonmedv/fx/releases/latest')
+const resp = await fetch(`https://api.github.com/repos/${repo}/releases/latest`)
 const {tag_name: latest} = await resp.json()
 
 await $`go mod download`
