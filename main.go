@@ -622,9 +622,6 @@ func (m *model) View() string {
 		}
 	}
 
-	l := Split(main, "\n")
-	main = fmt.Sprintf("%v %v %v", len(l), m.listHeight(), main)
-
 	if m.previewMode {
 		previewStyle := previewPlain
 		if withBorder {
