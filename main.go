@@ -163,8 +163,8 @@ func main() {
 
 	m := &model{
 		path:        startPath,
-		width:       80,
-		height:      60,
+		termWidth:   80,
+		termHeight:  60,
 		positions:   make(map[string]position),
 		previewMode: startPreviewMode,
 		hideHidden:  hideHiddenFlag,
@@ -185,28 +185,28 @@ func main() {
 }
 
 type model struct {
-	path              string              // Current dir path we are looking at.
-	files             []fs.DirEntry       // Files we are looking at.
-	err               error               // Error while listing files.
-	c, r              int                 // Selector position in columns and rows.
-	columns, rows     int                 // Displayed amount of rows and columns.
-	width, height     int                 // Terminal size.
-	offset            int                 // Scroll position.
-	positions         map[string]position // Map of cursor positions per path.
-	search            string              // Type to select files with this value.
-	searchMode        bool                // Whether type-to-select is active.
-	searchId          int                 // Search id to indicate what search we are currently on.
-	matchedIndexes    []int               // List of char found indexes.
-	prevName          string              // Base name of previous directory before "up".
-	findPrevName      bool                // On View(), set c&r to point to prevName.
-	exitCode          int                 // Exit code.
-	previewMode       bool                // Whether preview is active.
-	previewContent    string              // Content of preview.
-	deleteCurrentFile bool                // Whether to delete current file.
-	toBeDeleted       []toDelete          // Map of files to be deleted.
-	yankedFilePath    string              // Show yank info
-	hideHidden        bool                // Hide hidden files
-	showHelp          bool                // Show help
+	path                  string              // Current dir path we are looking at.
+	files                 []fs.DirEntry       // Files we are looking at.
+	err                   error               // Error while listing files.
+	c, r                  int                 // Selector position in columns and rows.
+	columns, rows         int                 // Displayed amount of rows and columns.
+	termWidth, termHeight int                 // Terminal size.
+	offset                int                 // Scroll position.
+	positions             map[string]position // Map of cursor positions per path.
+	search                string              // Type to select files with this value.
+	searchMode            bool                // Whether type-to-select is active.
+	searchId              int                 // Search id to indicate what search we are currently on.
+	matchedIndexes        []int               // List of char found indexes.
+	prevName              string              // Base name of previous directory before "up".
+	findPrevName          bool                // On View(), set c&r to point to prevName.
+	exitCode              int                 // Exit code.
+	previewMode           bool                // Whether preview is active.
+	previewContent        string              // Content of preview.
+	deleteCurrentFile     bool                // Whether to delete current file.
+	toBeDeleted           []toDelete          // Map of files to be deleted.
+	yankedFilePath        string              // Show yank info
+	hideHidden            bool                // Hide hidden files
+	showHelp              bool                // Show help
 }
 
 type position struct {
@@ -231,10 +231,10 @@ func (m *model) Init() tea.Cmd {
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
-		if m.height < 3 {
-			m.height = 3
+		m.termWidth = msg.Width
+		m.termHeight = msg.Height
+		if m.termHeight < 3 {
+			m.termHeight = 3
 		}
 		// Reset position history as c&r changes.
 		m.positions = make(map[string]position)
@@ -436,6 +436,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if ok {
 				clipboard.WriteAll(filePath)
 				m.yankedFilePath = filePath
+				m.updateOffset()
 			}
 			return m, nil
 
@@ -506,9 +507,9 @@ func (m *model) View() string {
 		return out.String()
 	}
 
-	width := m.width
+	width := m.termWidth
 	if m.previewMode {
-		width = m.width / 2
+		width = m.termWidth / 2
 	}
 	height := m.listHeight()
 
@@ -607,19 +608,22 @@ func (m *model) View() string {
 		main = barStr + "\n" + warning.Render("No files")
 	}
 
-	// Delete bar.
-	if len(m.toBeDeleted) > 0 {
-		toDelete := m.toBeDeleted[len(m.toBeDeleted)-1]
-		timeLeft := int(toDelete.at.Sub(time.Now()).Seconds())
-		deleteBar := fmt.Sprintf("%v deleted. (u)ndo %v", path.Base(toDelete.path), timeLeft)
-		main += "\n" + danger.Render(deleteBar)
+	if m.showStatusBar() {
+		// Only show one status bar.
+		// TODO: Show most recent status bar.
+		if len(m.toBeDeleted) > 0 {
+			toDelete := m.toBeDeleted[len(m.toBeDeleted)-1]
+			timeLeft := int(toDelete.at.Sub(time.Now()).Seconds())
+			deleteBar := fmt.Sprintf("%v deleted. (u)ndo %v", path.Base(toDelete.path), timeLeft)
+			main += "\n" + danger.Render(deleteBar)
+		} else if m.yankedFilePath != "" {
+			yankBar := fmt.Sprintf("copied: %v", m.yankedFilePath)
+			main += "\n" + bar.Render(yankBar)
+		}
 	}
 
-	// Yank success.
-	if m.yankedFilePath != "" {
-		yankBar := fmt.Sprintf("copied: %v", m.yankedFilePath)
-		main += "\n" + bar.Render(yankBar)
-	}
+	l := Split(main, "\n")
+	main = fmt.Sprintf("%v %v %v", len(l), m.listHeight(), main)
 
 	if m.previewMode {
 		previewStyle := previewPlain
@@ -630,7 +634,7 @@ func (m *model) View() string {
 			lipgloss.Top,
 			main,
 			previewStyle.
-				MaxHeight(m.height).
+				MaxHeight(m.termHeight).
 				Render(previewPane),
 		)
 	} else {
@@ -750,11 +754,21 @@ files:
 }
 
 func (m *model) listHeight() int {
-	h := m.height - 1 // Subtract 1 for location bar.
-	if len(m.toBeDeleted) > 0 {
-		h-- // Subtract 1 for delete bar.
+	h := m.termHeight - 1 // Subtract 1 for location bar.
+	if m.showStatusBar() {
+		h--
 	}
 	return h
+}
+
+func (m *model) showStatusBar() bool {
+	if len(m.toBeDeleted) > 0 {
+		return true
+	}
+	if m.yankedFilePath != "" {
+		return true
+	}
+	return false
 }
 
 func (m *model) updateOffset() {
@@ -835,8 +849,8 @@ func (m *model) preview() {
 		return
 	}
 
-	width := m.width / 2
-	height := m.height - 1 // Subtract 1 for name bar.
+	width := m.termWidth / 2
+	height := m.termHeight - 1 // Subtract 1 for name bar.
 
 	if fileInfo.IsDir() {
 		files, err := os.ReadDir(filePath)
