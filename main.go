@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"io/fs"
@@ -12,7 +11,6 @@ import (
 	"path/filepath"
 	"runtime"
 	. "strings"
-	"sync"
 	"text/tabwriter"
 	"time"
 	"unicode/utf8"
@@ -94,8 +92,6 @@ var (
 )
 
 func main() {
-	go emitCO2(time.Second)
-
 	startPath, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -1013,32 +1009,6 @@ start:
 		}
 	}
 	return names, rows, columns
-}
-
-func emitCO2(duration time.Duration) {
-	ctx, cancel := context.WithTimeout(context.Background(), duration)
-	defer cancel()
-
-	numCPU := runtime.NumCPU()
-	runtime.GOMAXPROCS(numCPU)
-
-	var wg sync.WaitGroup
-
-	for i := 0; i < numCPU; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				default:
-				}
-			}
-		}()
-	}
-
-	wg.Wait()
 }
 
 func (m *model) dontDoPendingDeletions() {
