@@ -29,31 +29,43 @@ var Version = "v1.11.0"
 const separator = "    " // Separator between columns.
 
 var (
-	mainColor   = lipgloss.Color("#825DF2")
-	barColor    = lipgloss.Color("#5C5C5C")
-	searchColor = lipgloss.Color("#499F1C")
-	bold        = lipgloss.NewStyle().Bold(true)
-	warning     = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
-	cursor      = lipgloss.NewStyle().Background(mainColor).Foreground(lipgloss.Color("#FFFFFF"))
-	bar         = lipgloss.NewStyle().Background(barColor).Foreground(lipgloss.Color("#FFFFFF"))
-	search      = lipgloss.NewStyle().Background(searchColor).Foreground(lipgloss.Color("#FFFFFF"))
-	danger      = lipgloss.NewStyle().Background(lipgloss.Color("#FF0000")).Foreground(lipgloss.Color("#FFFFFF"))
+	mainColor    = lipgloss.Color("#825DF2")
+	barColor     = lipgloss.Color("#5C5C5C")
+	searchColor  = lipgloss.Color("#499F1C")
+	bold         lipgloss.Style
+	warning      lipgloss.Style
+	cursor       lipgloss.Style
+	bar          lipgloss.Style
+	search       lipgloss.Style
+	danger       lipgloss.Style
+	previewPlain lipgloss.Style
+	previewSplit lipgloss.Style
+)
 
+func initStyles() {
+	bold = lipgloss.NewStyle().Bold(true)
+	warning = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
+	cursor = lipgloss.NewStyle().Background(mainColor).Foreground(lipgloss.Color("#FFFFFF"))
+	bar = lipgloss.NewStyle().Background(barColor).Foreground(lipgloss.Color("#FFFFFF"))
+	search = lipgloss.NewStyle().Background(searchColor).Foreground(lipgloss.Color("#FFFFFF"))
+	danger = lipgloss.NewStyle().Background(lipgloss.Color("#FF0000")).Foreground(lipgloss.Color("#FFFFFF"))
 	previewPlain = lipgloss.NewStyle().PaddingLeft(2)
 	previewSplit = lipgloss.NewStyle().
-			MarginLeft(1).
-			PaddingLeft(1).
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(mainColor).
-			BorderLeft(true)
-	preview = previewPlain
+		MarginLeft(1).
+		PaddingLeft(1).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(mainColor).
+		BorderLeft(true)
+}
 
+var (
 	fileSeparator    = string(filepath.Separator)
 	showIcons        = false
 	dirOnly          = false
 	startPreviewMode = false
 	fuzzyByDefault   = false
 	hideHiddenFlag   = false
+	withBorder       = false
 	strlen           = runewidth.StringWidth
 )
 
@@ -97,6 +109,11 @@ func main() {
 		panic(err)
 	}
 
+	if color, ok := os.LookupEnv("WALK_MAIN_COLOR"); ok {
+		mainColor = lipgloss.Color(color)
+	}
+	initStyles()
+
 	argsWithoutFlags := make([]string, 0)
 	for i := 1; i < len(os.Args); i++ {
 		if os.Args[i] == "--help" || os.Args[1] == "-h" {
@@ -128,7 +145,7 @@ func main() {
 			continue
 		}
 		if os.Args[i] == "--with-border" {
-			preview = previewSplit
+			withBorder = true
 			continue
 		}
 		argsWithoutFlags = append(argsWithoutFlags, os.Args[i])
@@ -605,10 +622,14 @@ func (m *model) View() string {
 	}
 
 	if m.previewMode {
+		previewStyle := previewPlain
+		if withBorder {
+			previewStyle = previewSplit
+		}
 		return lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			main,
-			preview.
+			previewStyle.
 				MaxHeight(m.height).
 				Render(previewPane),
 		)

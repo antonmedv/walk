@@ -129,6 +129,15 @@ command to remove files than the default `rm`.
 export WALK_REMOVE_CMD=trash
 ```
 
+Change main color with `WALK_MAIN_COLOR` environment variable. Available colors
+are [here](https://github.com/charmbracelet/lipgloss#colors).
+
+```bash
+export WALK_MAIN_COLOR="#0000FF"
+```
+
+### Flags
+
 Flags can be used to change the default behavior of the program.
 
 | Flag            | Description                 |
