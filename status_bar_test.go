@@ -42,10 +42,10 @@ func TestFileSize(t *testing.T) {
 		{1024 * 1024 * 1024 * 1024, "1.0TB"},
 	}
 
-	env := Env{}
 	for _, tc := range testCases {
 		mockFile := mockFile{size: tc.size}
-		result := env.FileSize(mockFile)
+		env := Env{CurrentFile: mockFile}
+		result := env.Size()
 		if result != tc.expected {
 			t.Errorf("Failed: %v != %v", result, tc.expected)
 		}
@@ -69,10 +69,10 @@ func TestFileMode(t *testing.T) {
 		{fs.ModeDevice | 0777, "brwxrwxrwx"},                     // Block device
 	}
 
-	env := Env{}
 	for _, tc := range testCases {
 		mockFile := mockFile{mode: tc.mode}
-		result := env.FileMode(mockFile)
+		env := Env{CurrentFile: mockFile}
+		result := env.Mode()
 		if result != tc.expected {
 			t.Errorf("Failed: %v != %v", result, tc.expected)
 		}
