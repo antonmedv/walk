@@ -17,6 +17,8 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/expr-lang/expr"
+	"github.com/expr-lang/expr/vm"
 	"github.com/mattn/go-runewidth"
 	"github.com/muesli/termenv"
 	"github.com/sahilm/fuzzy"
@@ -56,6 +58,10 @@ func main() {
 		termWidth:  80,
 		termHeight: 60,
 		positions:  make(map[string]position),
+	}
+
+	if statusBar, ok := os.LookupEnv("WALK_STATUS_BAR"); ok {
+		m.statusBar = compile(statusBar)
 	}
 
 	argsWithoutFlags := make([]string, 0)
@@ -146,6 +152,7 @@ type model struct {
 	yankedFilePath        string              // Show yank info
 	hideHidden            bool                // Hide hidden files
 	showHelp              bool                // Show help
+	statusBar             *vm.Program         // Status bar program.
 }
 
 type position struct {
@@ -178,7 +185,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Reset position history as c&r changes.
 		m.positions = make(map[string]position)
 		// Keep cursor at same place.
-		fileName, ok := m.fileName()
+		fileName, ok := m.currentFileName()
 		if ok {
 			m.prevName = fileName
 			m.findPrevName = true
@@ -336,7 +343,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Reset position history as c&r changes.
 			m.positions = make(map[string]position)
 			// Keep cursor at same place.
-			fileName, ok := m.fileName()
+			fileName, ok := m.currentFileName()
 			if !ok {
 				return m, nil
 			}
@@ -510,7 +517,7 @@ func (m *model) View() string {
 	}
 
 	// Preview pane.
-	fileName, _ := m.fileName()
+	fileName, _ := m.currentFileName()
 	previewPane := bar.Render(fileName) + "\n"
 	previewPane += m.previewContent
 
@@ -558,6 +565,20 @@ func (m *model) View() string {
 		} else if m.yankedFilePath != "" {
 			yankBar := fmt.Sprintf("copied: %v", m.yankedFilePath)
 			main += "\n" + bar.Render(yankBar)
+		} else if m.statusBar != nil {
+			f, ok := m.currentFile()
+			if ok {
+				env := Env{
+					Files:       m.files,
+					CurrentFile: f,
+				}
+				statusBar, err := expr.Run(m.statusBar, env)
+				if err != nil {
+					main += "\n" + err.Error()
+				} else {
+					main += "\n" + bar.Render(fmt.Sprintf("%v", statusBar))
+				}
+			}
 		}
 	}
 
@@ -704,6 +725,9 @@ func (m *model) showStatusBar() bool {
 	if m.yankedFilePath != "" {
 		return true
 	}
+	if m.statusBar != nil {
+		return true
+	}
 	return false
 }
 
@@ -734,16 +758,24 @@ func (m *model) saveCursorPosition() {
 	}
 }
 
-func (m *model) fileName() (string, bool) {
+func (m *model) currentFile() (fs.DirEntry, bool) {
 	i := m.c*m.rows + m.r
 	if i >= len(m.files) || i < 0 {
+		return nil, false
+	}
+	return m.files[i], true
+}
+
+func (m *model) currentFileName() (string, bool) {
+	f, ok := m.currentFile()
+	if !ok {
 		return "", false
 	}
-	return m.files[i].Name(), true
+	return f.Name(), true
 }
 
 func (m *model) filePath() (string, bool) {
-	fileName, ok := m.fileName()
+	fileName, ok := m.currentFileName()
 	if !ok {
 		return fileName, false
 	}

@@ -7,6 +7,7 @@ require (
 	github.com/charmbracelet/bubbles v0.18.0
 	github.com/charmbracelet/bubbletea v0.26.5
 	github.com/charmbracelet/lipgloss v0.11.0
+	github.com/expr-lang/expr v1.16.9
 	github.com/mattn/go-runewidth v0.0.15
 	github.com/muesli/termenv v0.15.2
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646

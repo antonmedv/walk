@@ -23,10 +23,10 @@ func parseIcons() {
 }
 
 //go:embed etc/icons
-var f embed.FS
+var iconsFs embed.FS
 
 func (im iconMap) parse() {
-	icons, _ := f.Open("etc/icons")
+	icons, _ := iconsFs.Open("etc/icons")
 	pairs, err := readPairs(icons)
 	if err != nil {
 		log.Printf("reading icons file: %s", err)

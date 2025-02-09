@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -54,4 +55,11 @@ func leaveOnlyAscii(content []byte) string {
 	}
 
 	return string(result)
+}
+
+func permBit(bit fs.FileMode, c byte) byte {
+	if bit != 0 {
+		return c
+	}
+	return '-'
 }
