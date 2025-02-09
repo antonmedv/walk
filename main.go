@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"io/fs"
 	"math"
 	"os"
@@ -11,7 +10,6 @@ import (
 	"path/filepath"
 	"runtime"
 	. "strings"
-	"text/tabwriter"
 	"time"
 	"unicode/utf8"
 
@@ -29,78 +27,12 @@ var Version = "v1.11.0"
 const separator = "    " // Separator between columns.
 
 var (
-	mainColor    = lipgloss.Color("#825DF2")
-	barColor     = lipgloss.Color("#5C5C5C")
-	searchColor  = lipgloss.Color("#499F1C")
-	bold         lipgloss.Style
-	warning      lipgloss.Style
-	cursor       lipgloss.Style
-	bar          lipgloss.Style
-	search       lipgloss.Style
-	danger       lipgloss.Style
-	previewPlain lipgloss.Style
-	previewSplit lipgloss.Style
-)
-
-func initStyles() {
-	bold = lipgloss.NewStyle().Bold(true)
-	warning = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).PaddingLeft(1).PaddingRight(1)
-	cursor = lipgloss.NewStyle().Background(mainColor).Foreground(lipgloss.Color("#FFFFFF"))
-	bar = lipgloss.NewStyle().Background(barColor).Foreground(lipgloss.Color("#FFFFFF"))
-	search = lipgloss.NewStyle().Background(searchColor).Foreground(lipgloss.Color("#FFFFFF"))
-	danger = lipgloss.NewStyle().Background(lipgloss.Color("#FF0000")).Foreground(lipgloss.Color("#FFFFFF"))
-	previewPlain = lipgloss.NewStyle().PaddingLeft(2)
-	previewSplit = lipgloss.NewStyle().
-		MarginLeft(1).
-		PaddingLeft(1).
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(mainColor).
-		BorderLeft(true)
-}
-
-var (
-	fileSeparator    = string(filepath.Separator)
-	showIcons        = false
-	dirOnly          = false
-	startPreviewMode = false
-	fuzzyByDefault   = false
-	hideHiddenFlag   = false
-	withBorder       = false
-	strlen           = runewidth.StringWidth
-)
-
-var (
-	keyForceQuit = key.NewBinding(key.WithKeys("ctrl+c"))
-	keyQuit      = key.NewBinding(key.WithKeys("esc"))
-	keyQuitQ     = key.NewBinding(key.WithKeys("q"))
-	keyOpen      = key.NewBinding(key.WithKeys("enter"))
-	keyBack      = key.NewBinding(key.WithKeys("backspace"))
-	keyFnDelete  = key.NewBinding(key.WithKeys("delete"))
-	keyUp        = key.NewBinding(key.WithKeys("up"))
-	keyDown      = key.NewBinding(key.WithKeys("down"))
-	keyLeft      = key.NewBinding(key.WithKeys("left"))
-	keyRight     = key.NewBinding(key.WithKeys("right"))
-	keyTop       = key.NewBinding(key.WithKeys("shift+up"))
-	keyBottom    = key.NewBinding(key.WithKeys("shift+down"))
-	keyLeftmost  = key.NewBinding(key.WithKeys("shift+left"))
-	keyRightmost = key.NewBinding(key.WithKeys("shift+right"))
-	keyPageUp    = key.NewBinding(key.WithKeys("pgup"))
-	keyPageDown  = key.NewBinding(key.WithKeys("pgdown"))
-	keyHome      = key.NewBinding(key.WithKeys("home"))
-	keyEnd       = key.NewBinding(key.WithKeys("end"))
-	keyVimUp     = key.NewBinding(key.WithKeys("k"))
-	keyVimDown   = key.NewBinding(key.WithKeys("j"))
-	keyVimLeft   = key.NewBinding(key.WithKeys("h"))
-	keyVimRight  = key.NewBinding(key.WithKeys("l"))
-	keyVimTop    = key.NewBinding(key.WithKeys("g"))
-	keyVimBottom = key.NewBinding(key.WithKeys("G"))
-	keySearch    = key.NewBinding(key.WithKeys("/"))
-	keyPreview   = key.NewBinding(key.WithKeys(" "))
-	keyDelete    = key.NewBinding(key.WithKeys("d"))
-	keyUndo      = key.NewBinding(key.WithKeys("u"))
-	keyYank      = key.NewBinding(key.WithKeys("y"))
-	keyHidden    = key.NewBinding(key.WithKeys("."))
-	keyHelp      = key.NewBinding(key.WithKeys("?"))
+	fileSeparator  = string(filepath.Separator)
+	showIcons      = false
+	dirOnly        = false
+	fuzzyByDefault = false
+	withBorder     = false
+	strlen         = runewidth.StringWidth
 )
 
 func main() {
@@ -109,8 +41,8 @@ func main() {
 		panic(err)
 	}
 
-	if openWith, ok := os.LookupEnv("WALK_OPEN_WITH"); ok {
-		parseOpenWith(openWith)
+	if s, ok := os.LookupEnv("WALK_OPEN_WITH"); ok {
+		parseOpenWith(s)
 	}
 
 	if color, ok := os.LookupEnv("WALK_MAIN_COLOR"); ok {
@@ -119,6 +51,13 @@ func main() {
 
 	initStyles()
 
+	m := &model{
+		path:       startPath,
+		termWidth:  80,
+		termHeight: 60,
+		positions:  make(map[string]position),
+	}
+
 	argsWithoutFlags := make([]string, 0)
 	for i := 1; i < len(os.Args); i++ {
 		if os.Args[i] == "--help" || os.Args[1] == "-h" {
@@ -126,7 +65,8 @@ func main() {
 			os.Exit(1)
 		}
 		if os.Args[i] == "--version" || os.Args[1] == "-v" {
-			version()
+			fmt.Printf("%s\n", Version)
+			os.Exit(0)
 		}
 		if os.Args[i] == "--icons" {
 			showIcons = true
@@ -138,7 +78,7 @@ func main() {
 			continue
 		}
 		if os.Args[i] == "--preview" {
-			startPreviewMode = true
+			m.previewMode = true
 			continue
 		}
 		if os.Args[i] == "--fuzzy" {
@@ -146,7 +86,7 @@ func main() {
 			continue
 		}
 		if os.Args[i] == "--hide-hidden" {
-			hideHiddenFlag = true
+			m.hideHidden = true
 			continue
 		}
 		if os.Args[i] == "--with-border" {
@@ -166,14 +106,6 @@ func main() {
 	output := termenv.NewOutput(os.Stderr)
 	lipgloss.SetColorProfile(output.ColorProfile())
 
-	m := &model{
-		path:        startPath,
-		termWidth:   80,
-		termHeight:  60,
-		positions:   make(map[string]position),
-		previewMode: startPreviewMode,
-		hideHidden:  hideHiddenFlag,
-	}
 	m.list()
 
 	opts := []tea.ProgramOption{
@@ -182,10 +114,12 @@ func main() {
 	if m.previewMode {
 		opts = append(opts, tea.WithAltScreen())
 	}
+
 	p := tea.NewProgram(m, opts...)
 	if _, err := p.Run(); err != nil {
 		panic(err)
 	}
+
 	os.Exit(m.exitCode)
 }
 
@@ -332,7 +266,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.list()
 			} else {
 				// Open file. This will block until complete.
-				return m, m.openEditor()
+				return m, m.open()
 			}
 
 		case key.Matches(msg, keyBack):
@@ -816,16 +750,21 @@ func (m *model) filePath() (string, bool) {
 	return path.Join(m.path, fileName), true
 }
 
-func (m *model) openEditor() tea.Cmd {
+func (m *model) open() tea.Cmd {
 	filePath, ok := m.filePath()
 	if !ok {
 		return nil
 	}
 
-	cmdline := Split(lookup([]string{"WALK_EDITOR", "EDITOR"}, "less"), " ")
-	cmdline = append(cmdline, filePath)
+	var commandString string
+	if commandString, ok = openWith[extension(filePath)]; ok {
 
-	execCmd := exec.Command(cmdline[0], cmdline[1:]...)
+	} else {
+		commandString = lookup([]string{"WALK_EDITOR", "EDITOR"}, "less")
+	}
+
+	commandSlice := append(Split(commandString, " "), filePath)
+	execCmd := exec.Command(commandSlice[0], commandSlice[1:]...)
 	return tea.ExecProcess(execCmd, func(err error) tea.Msg {
 		// Note: we could return a message here indicating that editing is
 		// finished and altering our application about any errors. For now,
@@ -1043,45 +982,4 @@ func (m *model) performPendingDeletions() {
 		remove(toDelete.path)
 	}
 	m.toBeDeleted = nil
-}
-
-func parseOpenWith(openWith string) {
-
-}
-
-func usage(out io.Writer, full bool) {
-	if full {
-		_, _ = fmt.Fprintf(out, "\n  "+bold.Render("walk "+Version)+"\n\n  Usage: walk [path]\n\n")
-	}
-	w := tabwriter.NewWriter(out, 0, 8, 2, ' ', 0)
-	put := func(s string) {
-		_, _ = fmt.Fprintln(w, s)
-	}
-	put("    arrows, hjkl\tMove cursor")
-	put("    enter\tEnter directory")
-	put("    backspace\tExit directory")
-	put("    space\tToggle preview")
-	put("    esc, q\tExit with cd")
-	put("    ctrl+c\tExit without cd")
-	put("    /\tFuzzy search")
-	put("    d, delete\tDelete file or dir")
-	put("    y\tCopy to clipboard")
-	put("    .\tHide hidden files")
-	put("    ?\tShow help")
-	if full {
-		put("\n  Flags:\n")
-		put("    --icons\tdisplay icons")
-		put("    --dir-only\tshow dirs only")
-		put("    --hide-hidden\thide hidden files")
-		put("    --preview\tdisplay preview")
-		put("    --with-border\tpreview with border")
-		put("    --fuzzy\tfuzzy mode")
-	}
-	_ = w.Flush()
-	_, _ = fmt.Fprintf(out, "\n")
-}
-
-func version() {
-	fmt.Printf("%s\n", Version)
-	os.Exit(0)
 }
