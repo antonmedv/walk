@@ -142,6 +142,12 @@ are [here](https://github.com/charmbracelet/lipgloss#colors).
 export WALK_MAIN_COLOR="#0000FF"
 ```
 
+Use `WALK_STATUS_BAR` environment variable to specify a [status bar](STATUS_BAR.md) program.
+
+```bash
+export WALK_STATUS_BAR="Size() + ' ' + Mode()"
+```
+
 ### Flags
 
 Flags can be used to change the default behavior of the program.
