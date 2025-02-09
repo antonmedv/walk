@@ -17,7 +17,7 @@ The syntax of the status bar program is based on the [expr](https://expr-lang.or
 
 ### `current_file`
 
-Current file, type: `fs.DirEntry`
+Current file, type: [`fs.DirEntry`](https://pkg.go.dev/io/fs#DirEntry)
 
 ### `files`
 
