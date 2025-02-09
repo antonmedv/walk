@@ -8,15 +8,14 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"os"
-	"path/filepath"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/nfnt/resize"
 )
 
-func isImageExt(filePath string) bool {
-	ext := filepath.Ext(filePath)
-	return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".gif"
+func isImage(path string) bool {
+	ext := extension(path)
+	return ext == "png" || ext == "jpg" || ext == "jpeg" || ext == "gif"
 }
 
 func drawImage(path string, width, height int) (string, error) {
