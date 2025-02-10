@@ -122,8 +122,14 @@ func main() {
 	}
 
 	p := tea.NewProgram(m, opts...)
-	if _, err := p.Run(); err != nil {
+	lastM, err := p.Run()
+	if err != nil {
 		panic(err)
+	}
+
+	m = lastM.(*model)
+	if m.exitCode == 0 {
+		fmt.Println(m.path) // Write to cd.
 	}
 
 	os.Exit(m.exitCode)
@@ -153,6 +159,7 @@ type model struct {
 	hideHidden            bool                // Hide hidden files
 	showHelp              bool                // Show help
 	statusBar             *vm.Program         // Status bar program.
+	quitting              bool                // Whether we are quitting the program.
 }
 
 type position struct {
@@ -239,14 +246,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch {
 		case key.Matches(msg, keyForceQuit):
-			_, _ = fmt.Fprintln(os.Stderr) // Keep last item visible after prompt.
+			m.quitting = true
 			m.exitCode = 2
 			m.dontDoPendingDeletions()
 			return m, tea.Quit
 
 		case key.Matches(msg, keyQuit, keyQuitQ):
-			_, _ = fmt.Fprintln(os.Stderr) // Keep last item visible after prompt.
-			fmt.Println(m.path)            // Write to cd.
+			m.quitting = true
 			m.exitCode = 0
 			m.performPendingDeletions()
 			return m, tea.Quit
@@ -582,21 +588,26 @@ func (m *model) View() string {
 		}
 	}
 
+	view := main
 	if m.previewMode {
 		previewStyle := previewPlain
 		if withBorder {
 			previewStyle = previewSplit
 		}
-		return lipgloss.JoinHorizontal(
+		view = lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			main,
 			previewStyle.
 				MaxHeight(m.termHeight).
 				Render(previewPane),
 		)
-	} else {
-		return main
 	}
+
+	if m.quitting {
+		view += "\n" // Keep the last line from disappearing.
+	}
+
+	return view
 }
 
 func (m *model) moveUp() {
