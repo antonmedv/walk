@@ -54,7 +54,6 @@ func main() {
 	initStyles()
 
 	m := &model{
-		path:       startPath,
 		termWidth:  80,
 		termHeight: 60,
 		positions:  make(map[string]position),
@@ -112,6 +111,7 @@ func main() {
 	output := termenv.NewOutput(os.Stderr)
 	lipgloss.SetColorProfile(output.ColorProfile())
 
+	m.path = startPath
 	m.list()
 
 	opts := []tea.ProgramOption{
@@ -790,7 +790,6 @@ func (m *model) open() tea.Cmd {
 
 	var commandString string
 	if commandString, ok = openWith[extension(filePath)]; ok {
-
 	} else {
 		commandString = lookup([]string{"WALK_EDITOR", "EDITOR"}, "less")
 	}
