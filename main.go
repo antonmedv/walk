@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/fs"
 	"math"
@@ -13,6 +14,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/alecthomas/chroma/v2/lexers"
+	"github.com/alecthomas/chroma/v2/quick"
 	"github.com/antonmedv/clipboard"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -899,7 +902,19 @@ func (m *model) preview() {
 
 	switch {
 	case utf8.Valid(content):
-		m.previewContent = leaveOnlyAscii(content)
+		var buf bytes.Buffer
+		lexer := lexers.Match(filePath)
+		if lexer == nil {
+			lexer = lexers.Fallback
+		}
+
+		// Highlight the content.
+		previewContent := leaveOnlyAscii(content)
+		if err := quick.Highlight(&buf, previewContent, lexer.Config().Name, "terminal256", "friendly"); err == nil {
+			m.previewContent = buf.String()
+		} else {
+			m.previewContent = previewContent
+		}
 	default:
 		m.previewContent = warning.Render("No preview available")
 	}
