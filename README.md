@@ -163,7 +163,7 @@ Flags can be used to change the default behavior of the program.
 
 ## Related
 
-- [walk](https://github.com/antonmedv/walk) – terminal file manager
+- [fx](https://github.com/antonmedv/fx) – terminal JSON viewer
 - [howto](https://github.com/antonmedv/howto) – terminal command LLM helper
 
 ## License
