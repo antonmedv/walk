@@ -161,6 +161,11 @@ Flags can be used to change the default behavior of the program.
 | `--with-border` | Show border in preview mode |
 | `--fuzzy`       | Start with fuzzy search on  |
 
+## Related
+
+- [walk](https://github.com/antonmedv/walk) – terminal file manager
+- [howto](https://github.com/antonmedv/howto) – terminal command LLM helper
+
 ## License
 
 [MIT](LICENSE)
