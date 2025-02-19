@@ -37,6 +37,7 @@ var (
 	dirOnly        = false
 	fuzzyByDefault = false
 	withBorder     = false
+	withHighlight  = true
 	strlen         = runewidth.StringWidth
 )
 
@@ -52,6 +53,10 @@ func main() {
 
 	if color, ok := os.LookupEnv("WALK_MAIN_COLOR"); ok {
 		mainColor = lipgloss.Color(color)
+	}
+
+	if _, ok := os.LookupEnv("WALK_NO_HIGHLIGHT"); ok {
+		withHighlight = false
 	}
 
 	initStyles()
@@ -902,18 +907,18 @@ func (m *model) preview() {
 
 	switch {
 	case utf8.Valid(content):
-		var buf bytes.Buffer
-		lexer := lexers.Match(filePath)
-		if lexer == nil {
-			lexer = lexers.Fallback
-		}
-
-		// Highlight the content.
 		previewContent := leaveOnlyAscii(content)
-		if err := quick.Highlight(&buf, previewContent, lexer.Config().Name, "terminal256", "friendly"); err == nil {
-			m.previewContent = buf.String()
-		} else {
-			m.previewContent = previewContent
+		m.previewContent = previewContent
+
+		if withHighlight {
+			var buf bytes.Buffer
+			lexer := lexers.Match(filePath)
+			if lexer == nil {
+				lexer = lexers.Fallback
+			}
+			if err := quick.Highlight(&buf, previewContent, lexer.Config().Name, "terminal256", "friendly"); err == nil {
+				m.previewContent = buf.String()
+			}
 		}
 	default:
 		m.previewContent = warning.Render("No preview available")
