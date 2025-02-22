@@ -98,19 +98,19 @@ No additional setup is required.
 
 ## Usage
 
-| Key binding      | Description        |
-|------------------|--------------------|
-| `arrows`, `hjkl` | Move cursor        |
-| `shift+arrows`   | Jump to start/end  |
-| `enter`          | Enter directory    |
-| `backspace`      | Exit directory     |
-| `space`          | Toggle preview     |
-| `esc`, `q`       | Exit with cd       |
-| `ctrl+c`         | Exit without cd    |
-| `/`              | Fuzzy search       |
-| `d`, `delete`    | Delete file or dir |
-| `y`              | yank current dir   |
-| `.`              | Hide hidden files  |
+| Key binding                          | Description        |
+|--------------------------------------|--------------------|
+| <kbd>arrows</kbd>, <kbd>hjkl</kbd>   | Move cursor        |
+| <kbd>shift</kbd> + <kbd>arrows</kbd> | Jump to start/end  |
+| <kbd>enter</kbd>                     | Enter directory    |
+| <kbd>backspace</kbd>                 | Exit directory     |
+| <kbd>space</kbd>                     | Toggle preview     |
+| <kbd>esc</kbd>, <kbd>q</kbd>         | Exit with cd       |
+| <kbd>ctrl</kbd> + <kbd>c</kbd>       | Exit without cd    |
+| <kbd>/</kbd>                         | Fuzzy search       |
+| <kbd>d</kbd>, <kbd>delete</kbd>      | Delete file or dir |
+| <kbd>y</kbd>                         | yank current dir   |
+| <kbd>.</kbd>                         | Hide hidden files  |
 
 ## Configuration
 
