@@ -165,6 +165,7 @@ Flags can be used to change the default behavior of the program.
 
 - [fx](https://github.com/antonmedv/fx) – terminal JSON viewer
 - [howto](https://github.com/antonmedv/howto) – terminal command LLM helper
+- [countdown](https://github.com/antonmedv/countdown) – terminal countdown timer
 
 ## License
 
