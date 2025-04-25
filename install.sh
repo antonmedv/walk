@@ -36,8 +36,8 @@ arm64 | aarch64)
 esac
 
 asset="${name}_${os}_${arch}${ext}"
-echo "Downloading ${name} ${version} (${asset})"
-curl -Lfs "https://github.com/${owner}/${name}/releases/download/${version}/${asset}" -o "${name}"
+echo "Downloading ${asset} (${version})"
+curl -Lf --progress-bar "https://github.com/${owner}/${name}/releases/download/${version}/${asset}" -o "${name}"
 
 chmod +x "${name}"
 
