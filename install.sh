@@ -1,5 +1,4 @@
 #!/bin/sh
-set -euo pipefail
 
 owner='antonmedv'
 name='walk'
