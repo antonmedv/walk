@@ -39,4 +39,4 @@ echo "Installing ${name} ${version} (${asset})"
 curl -Lfs "https://github.com/${owner}/${name}/releases/download/${version}/${asset}" -o "${name}"
 
 chmod +x "${name}"
-mv fx "/usr/local/bin/${name}"
+mv "${name}" "/usr/local/bin/${name}"
