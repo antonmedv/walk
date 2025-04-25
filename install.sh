@@ -1,4 +1,5 @@
 #!/bin/sh
+set -euo pipefail
 
 owner='antonmedv'
 name='walk'
@@ -39,4 +40,13 @@ echo "Installing ${name} ${version} (${asset})"
 curl -Lfs "https://github.com/${owner}/${name}/releases/download/${version}/${asset}" -o "${name}"
 
 chmod +x "${name}"
-mv "${name}" "/usr/local/bin/${name}"
+sudo mv "${name}" "/usr/local/bin/${name}"
+
+printf "Run 'sudo mv ${name} /usr/local/bin/${name}'? [Y/n]: "
+read -r answer
+case "$answer" in
+  [Yy]* | "" )
+    sudo mv "$bin_path" "/usr/local/bin/${name}"
+    echo "${name} installed successfully!"
+    ;;
+esac
