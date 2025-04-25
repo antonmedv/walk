@@ -36,17 +36,10 @@ arm64 | aarch64)
 esac
 
 asset="${name}_${os}_${arch}${ext}"
-echo "Installing ${name} ${version} (${asset})"
+echo "Downloading ${name} ${version} (${asset})"
 curl -Lfs "https://github.com/${owner}/${name}/releases/download/${version}/${asset}" -o "${name}"
 
 chmod +x "${name}"
-sudo mv "${name}" "/usr/local/bin/${name}"
 
-printf "Run 'sudo mv ${name} /usr/local/bin/${name}'? [Y/n]: "
-read -r answer
-case "$answer" in
-  [Yy]* | "" )
-    sudo mv "$bin_path" "/usr/local/bin/${name}"
-    echo "${name} installed successfully!"
-    ;;
-esac
+set -x
+sudo mv "${name}" "/usr/local/bin/${name}"
