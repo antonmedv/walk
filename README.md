@@ -24,6 +24,10 @@ pkg_add walk
 go install github.com/antonmedv/walk@latest
 ```
 
+```
+curl https://raw.githubusercontent.com/antonmedv/walk/master/install.sh | sh
+```
+
 Or download [prebuild binaries](https://github.com/antonmedv/walk/releases).
 
 ### Setup
