@@ -142,7 +142,9 @@ func main() {
 
 	m = lastM.(*model)
 	if m.exitCode == 0 {
-		fmt.Println(m.path) // Write to cd.
+		if fileEntry, ok := m.currentFile(); ok {
+			fmt.Println(fileEntry.dirPath) // Write to cd.
+		}
 	}
 
 	os.Exit(m.exitCode)
