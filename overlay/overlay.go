@@ -34,8 +34,45 @@ func getLines(s string) (lines []string, widest int) {
 	return lines, widest
 }
 
+// Added by feketga.
+func enlargeBg(x, y int, fg, bg string) string {
+	fgLines, fgWidth := getLines(fg)
+	bgLines, bgWidth := getLines(bg)
+	bgHeight := len(bgLines)
+	fgHeight := len(fgLines)
+
+	requiredWidth := max(bgWidth, x+fgWidth)
+	requiredHeight := max(bgHeight, y+fgHeight)
+
+	var b strings.Builder
+
+	// Enlarge bg horizontally.
+	for _, bgLine := range bgLines {
+		paddingSize := requiredWidth - ansi.PrintableRuneWidth(bgLine)
+		padding := strings.Repeat(" ", paddingSize)
+		b.WriteString(bgLine + padding + "\n")
+	}
+
+	// Enlarge bg vertically.
+	if bgHeight < requiredHeight {
+		missingLineCount := requiredHeight - bgHeight
+		paddedLine := strings.Repeat(" ", requiredWidth)
+		paddedLines := []string{}
+		for i := 0; i < missingLineCount; i++ {
+			paddedLines = append(paddedLines, paddedLine)
+		}
+		missingLines := strings.Join(paddedLines, "\n")
+		b.WriteString(missingLines)
+	}
+
+	return b.String()
+}
+
 // PlaceOverlay places fg on top of bg.
 func PlaceOverlay(x, y int, fg, bg string, opts ...WhitespaceOption) string {
+	// Make sure we have a large anough bg.
+	bg = enlargeBg(x, y, fg, bg)
+
 	fgLines, fgWidth := getLines(fg)
 	bgLines, bgWidth := getLines(bg)
 	bgHeight := len(bgLines)
