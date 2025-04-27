@@ -47,10 +47,13 @@ func enlargeBg(x, y int, fg, bg string) string {
 	var b strings.Builder
 
 	// Enlarge bg horizontally.
-	for _, bgLine := range bgLines {
+	for i, bgLine := range bgLines {
+		if i > 0 {
+			b.WriteByte('\n')
+		}
 		paddingSize := requiredWidth - ansi.PrintableRuneWidth(bgLine)
 		padding := strings.Repeat(" ", paddingSize)
-		b.WriteString(bgLine + padding + "\n")
+		b.WriteString(bgLine + padding)
 	}
 
 	// Enlarge bg vertically.
