@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/fs"
 	"math"
 	"os"
 	"os/exec"
@@ -29,7 +28,7 @@ import (
 
 var Version = "v1.13.0"
 
-const separator = "    " // Separator between columns.
+var separator = "    " // Separator between columns.
 
 var (
 	fileSeparator  = string(filepath.Separator)
@@ -67,6 +66,8 @@ func main() {
 		positions:  make(map[string]position),
 	}
 
+	initExtra(m)
+
 	if statusBar, ok := os.LookupEnv("WALK_STATUS_BAR"); ok {
 		m.statusBar = compile(statusBar)
 	}
@@ -88,6 +89,10 @@ func main() {
 		}
 		if os.Args[i] == "--dir-only" {
 			dirOnly = true
+			continue
+		}
+		if os.Args[i] == "--dirs-first" {
+			dirsFirst = true
 			continue
 		}
 		if os.Args[i] == "--preview" {
@@ -145,18 +150,18 @@ func main() {
 
 type model struct {
 	path                  string              // Current dir path we are looking at.
-	files                 []fs.DirEntry       // Files we are looking at.
+	files                 []fileEntry         // Files we are looking at.
 	err                   error               // Error while listing files.
-	c, r                  int                 // Selector position in columns and rows.
+	currenFileIndex       int                 // The index of the currently highlighted file (i.e. the current file).
 	columns, rows         int                 // Displayed amount of rows and columns.
 	termWidth, termHeight int                 // Terminal size.
-	offset                int                 // Scroll position.
+	firstFileIndex        int                 // Scroll position.
 	positions             map[string]position // Map of cursor positions per path.
 	search                string              // Type to select files with this value.
 	searchMode            bool                // Whether type-to-select is active.
 	searchId              int                 // Search id to indicate what search we are currently on.
 	matchedIndexes        []int               // List of char found indexes.
-	prevName              string              // Base name of previous directory before "up".
+	prevName              string              // Full path of previous directory before "up".
 	findPrevName          bool                // On View(), set c&r to point to prevName.
 	exitCode              int                 // Exit code.
 	previewMode           bool                // Whether preview is active.
@@ -168,11 +173,13 @@ type model struct {
 	showHelp              bool                // Show help
 	statusBar             *vm.Program         // Status bar program.
 	quitting              bool                // Whether we are quitting the program.
+	fileInfoProg          *vm.Program         // File info program.
+	extra                 extraModel
 }
 
 type position struct {
-	c, r   int
-	offset int
+	firstDisplayedFileIndex int
+	cursorFileIndex         int
 }
 
 type toDelete struct {
@@ -190,6 +197,11 @@ func (m *model) Init() tea.Cmd {
 }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	//log.Println("UPD: msg: ", reflect.TypeOf(msg).Name())
+	if mm, cmd, updated := extraUpdate(m, msg); updated {
+		return mm, cmd
+	}
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.termWidth = msg.Width
@@ -200,14 +212,14 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Reset position history as c&r changes.
 		m.positions = make(map[string]position)
 		// Keep cursor at same place.
-		fileName, ok := m.currentFileName()
+		filePath, ok := m.filePath()
 		if ok {
-			m.prevName = fileName
+			m.prevName = filePath
 			m.findPrevName = true
 		}
-		// Also, m.c&r no longer point to the correct indexes.
-		m.c = 0
-		m.r = 0
+		// Also, m.currenFileIndex no longer point to the correct index.
+		m.currenFileIndex = 0
+		m.columns = -1
 		return m, nil
 
 	case tea.KeyMsg:
@@ -274,31 +286,21 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if fi := fileInfo(filePath); fi.IsDir() {
 				// Enter subdirectory.
-				m.path = filePath
-				if p, ok := m.positions[m.path]; ok {
-					m.c = p.c
-					m.r = p.r
-					m.offset = p.offset
-				} else {
-					m.c = 0
-					m.r = 0
-					m.offset = 0
-				}
-				m.list()
+				enterDirectory(m, filePath)
+				return m, nil
 			} else {
 				// Open file. This will block until complete.
 				return m, m.open()
 			}
 
-		case key.Matches(msg, keyBack):
+		case key.Matches(msg, keyUpDir):
 			m.search = ""
 			m.searchMode = false
-			m.prevName = filepath.Base(m.path)
+			m.prevName = m.path
 			m.path = filepath.Join(m.path, "..")
 			if p, ok := m.positions[m.path]; ok {
-				m.c = p.c
-				m.r = p.r
-				m.offset = p.offset
+				m.currenFileIndex = p.cursorFileIndex
+				m.firstFileIndex = p.firstDisplayedFileIndex
 			} else {
 				m.findPrevName = true
 			}
@@ -308,17 +310,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keyUp):
 			m.moveUp()
 
-		case key.Matches(msg, keyTop, keyPageUp, keyVimTop):
-			m.moveTop()
+		case key.Matches(msg, keyPageUp):
+			m.movePageUp()
 
-		case key.Matches(msg, keyBottom, keyPageDown, keyVimBottom):
-			m.moveBottom()
-
-		case key.Matches(msg, keyLeftmost):
-			m.moveLeftmost()
-
-		case key.Matches(msg, keyRightmost):
-			m.moveRightmost()
+		case key.Matches(msg, keyPageDown):
+			m.movePageDown()
 
 		case key.Matches(msg, keyHome):
 			m.moveStart()
@@ -354,14 +350,14 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, keyPreview):
 			m.previewMode = !m.previewMode
-			// Reset position history as c&r changes.
+			// Reset position history as currentFileIndex changes.
 			m.positions = make(map[string]position)
 			// Keep cursor at same place.
-			fileName, ok := m.currentFileName()
+			filePath, ok := m.filePath()
 			if !ok {
 				return m, nil
 			}
-			m.prevName = fileName
+			m.prevName = filePath
 			m.findPrevName = true
 
 			if m.previewMode {
@@ -396,7 +392,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if ok {
 				clipboard.WriteAll(filePath)
 				m.yankedFilePath = filePath
-				m.updateOffset()
 			}
 			return m, nil
 
@@ -413,7 +408,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.deleteCurrentFile = false
 		m.showHelp = false
 		m.yankedFilePath = ""
-		m.updateOffset()
 		m.saveCursorPosition()
 
 	case clearSearchMsg:
@@ -446,16 +440,14 @@ func (m *model) updateSearch(msg tea.KeyMsg) {
 	m.search += string(msg.Runes)
 	names := make([]string, len(m.files))
 	for i, fi := range m.files {
-		names[i] = fi.Name()
+		names[i] = fi.dirEntry.Name()
 	}
 	matches := fuzzy.Find(m.search, names)
 	if len(matches) > 0 {
 		m.matchedIndexes = matches[0].MatchedIndexes
 		index := matches[0].Index
-		m.c = index / m.rows
-		m.r = index % m.rows
+		m.setCurrentFileIndex(index)
 	}
-	m.updateOffset()
 	m.saveCursorPosition()
 }
 
@@ -473,18 +465,15 @@ func (m *model) View() string {
 	}
 	height := m.listHeight()
 
-	var names [][]string
-	names, m.rows, m.columns = wrap(m.files, width, height, func(name string, i, j int) {
-		if m.findPrevName && m.prevName == name {
-			m.c = i
-			m.r = j
-		}
-	})
-
-	// If we need to select previous directory on "up".
+	if m.columns == -1 {
+		m.columns, m.rows = calculateColumnCount(m.extra.maxDislayNameLength, m.files, width, height)
+	}
 	if m.findPrevName {
+		fileIndex, ok := findFileIndex(m.prevName, m.files)
+		if ok {
+			m.setCurrentFileIndex(fileIndex)
+		}
 		m.findPrevName = false
-		m.updateOffset()
 		m.saveCursorPosition()
 	}
 
@@ -493,41 +482,43 @@ func (m *model) View() string {
 	m.preview()
 
 	// Get output rows width before coloring.
-	outputWidth := strlen(path.Base(m.path)) // Use current dir name as default.
-	if m.previewMode {
-		row := make([]string, m.columns)
-		for i := 0; i < m.columns; i++ {
-			if len(names[i]) > 0 {
-				row[i] = names[i][0]
-			} else {
-				outputWidth = width
-			}
-		}
-		outputWidth = max(outputWidth, strlen(Join(row, separator)))
-	} else {
-		outputWidth = width
-	}
+	outputWidth := width
+	// TODO: Update/fix this (if it's really needed):
+	// outputWidth := strlen(path.Base(m.path)) // Use current dir name as default.
+	// if m.previewMode {
+	// 	row := make([]string, m.columns)
+	// 	for i := 0; i < m.columns; i++ {
+	// 		if len(m.fileList[i]) > 0 {
+	// 			row[i] = createDisplayName(&m.fileList[i][0], true, false, nil)
+	// 		} else {
+	// 			outputWidth = width
+	// 		}
+	// 	}
+	// 	outputWidth = max(outputWidth, strlen(Join(row, separator)))
+	// } else {
+	// 	outputWidth = width
+	// }
 
 	// Let's add colors to file names.
 	output := make([]string, m.rows)
-	for j := 0; j < m.rows; j++ {
+	for r := 0; r < m.rows; r++ {
 		row := make([]string, m.columns)
-		for i := 0; i < m.columns; i++ {
-			if i == m.c && j == m.r {
+		for c := 0; c < m.columns; c++ {
+			fileIndex := m.firstFileIndex + (c * m.rows) + r
+			if fileIndex >= len(m.files) {
+				break
+			}
+			if fileIndex == m.currenFileIndex {
 				if m.deleteCurrentFile {
-					row[i] = danger.Render(names[i][j])
+					row[c] = createDisplayName(&m.files[fileIndex], true, true, &danger)
 				} else {
-					row[i] = cursor.Render(names[i][j])
+					row[c] = createDisplayName(&m.files[fileIndex], true, true, &cursor)
 				}
 			} else {
-				row[i] = names[i][j]
+				row[c] = createDisplayName(&m.files[fileIndex], true, true, nil)
 			}
 		}
-		output[j] = Join(row, separator)
-	}
-
-	if len(output) >= m.offset+height {
-		output = output[m.offset : m.offset+height]
+		output[r] = Join(row, separator)
 	}
 
 	// Preview pane.
@@ -583,8 +574,9 @@ func (m *model) View() string {
 			f, ok := m.currentFile()
 			if ok {
 				env := Env{
-					Files:       m.files,
-					CurrentFile: f,
+					DirPath:     m.path,
+					Files:       nil,
+					CurrentFile: f.dirEntry,
 				}
 				statusBar, err := expr.Run(m.statusBar, env)
 				if err != nil {
@@ -611,6 +603,8 @@ func (m *model) View() string {
 		)
 	}
 
+	view = extraView(m, view)
+
 	if m.quitting {
 		view += "\n" // Keep the last line from disappearing.
 	}
@@ -619,114 +613,65 @@ func (m *model) View() string {
 }
 
 func (m *model) moveUp() {
-	m.r--
-	if m.r < 0 {
-		m.r = m.rows - 1
-		m.c--
-	}
-	if m.c < 0 {
-		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
-		m.c = m.columns - 1
-	}
+	m.setCurrentFileIndex(m.currenFileIndex - 1)
 }
 
 func (m *model) moveDown() {
-	m.r++
-	if m.r >= m.rows {
-		m.r = 0
-		m.c++
-	}
-	if m.c >= m.columns {
-		m.c = 0
-	}
-	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
-		m.r = 0
-		m.c = 0
-	}
+	m.setCurrentFileIndex(m.currenFileIndex + 1)
 }
 
 func (m *model) moveLeft() {
-	m.c--
-	if m.c < 0 {
-		m.c = m.columns - 1
-	}
-	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
-		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
-		m.c = m.columns - 1
-	}
+	m.setCurrentFileIndex(m.currenFileIndex - m.rows)
 }
 
 func (m *model) moveRight() {
-	m.c++
-	if m.c >= m.columns {
-		m.c = 0
-	}
-	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
-		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
-		m.c = m.columns - 1
-	}
-}
-
-func (m *model) moveTop() {
-	m.r = 0
-}
-
-func (m *model) moveBottom() {
-	m.r = m.rows - 1
-	if m.c == m.columns-1 && (m.columns-1)*m.rows+m.r >= len(m.files) {
-		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
-	}
-}
-
-func (m *model) moveLeftmost() {
-	m.c = 0
-}
-
-func (m *model) moveRightmost() {
-	m.c = m.columns - 1
-	if (m.columns-1)*m.rows+m.r >= len(m.files) {
-		m.r = m.rows - 1 - (m.columns*m.rows - len(m.files))
-	}
+	m.setCurrentFileIndex(m.currenFileIndex + m.rows)
 }
 
 func (m *model) moveStart() {
-	m.moveLeftmost()
-	m.moveTop()
+	m.setCurrentFileIndex(0)
 }
 
 func (m *model) moveEnd() {
-	m.moveRightmost()
-	m.moveBottom()
+	m.setCurrentFileIndex(len(m.files) - 1)
+}
+
+func (m *model) movePageUp() {
+	screenCapacity := m.columns * m.rows
+	m.setCurrentFileIndex(m.currenFileIndex - (screenCapacity - 1))
+}
+
+func (m *model) movePageDown() {
+	screenCapacity := m.columns * m.rows
+	m.setCurrentFileIndex(m.currenFileIndex + (screenCapacity - 1))
+}
+func (m *model) setCurrentFileIndex(index int) {
+	m.currenFileIndex = index
+	m.sanitizeFirstIndexAndCurrentIndex()
+}
+
+func (m *model) sanitizeFirstIndexAndCurrentIndex() {
+	if m.currenFileIndex < 0 {
+		m.currenFileIndex = 0
+	}
+	if m.currenFileIndex < m.firstFileIndex {
+		m.firstFileIndex = m.currenFileIndex
+	}
+
+	if m.currenFileIndex >= len(m.files) {
+		m.currenFileIndex = len(m.files) - 1
+	}
+	screenCapacity := m.columns * m.rows
+	lastScreenIndex := m.firstFileIndex + (screenCapacity - 1)
+	if m.currenFileIndex > lastScreenIndex {
+		m.firstFileIndex = m.currenFileIndex - (screenCapacity - 1)
+	}
 }
 
 func (m *model) list() {
-	var err error
-	m.files = nil
-
-	// ReadDir already returns files and dirs sorted by filename.
-	files, err := os.ReadDir(m.path)
-	if err != nil {
-		m.err = err
-		return
-	} else {
-		m.err = nil
-	}
-
-files:
-	for _, file := range files {
-		if m.hideHidden && HasPrefix(file.Name(), ".") {
-			continue files
-		}
-		if dirOnly && !file.IsDir() {
-			continue files
-		}
-		for _, toDelete := range m.toBeDeleted {
-			if path.Join(m.path, file.Name()) == toDelete.path {
-				continue files
-			}
-		}
-		m.files = append(m.files, file)
-	}
+	m.columns = -1
+	m.rows = -1
+	m.files, m.err = listDir(m, m.path, 0)
 }
 
 func (m *model) listHeight() int {
@@ -750,39 +695,19 @@ func (m *model) showStatusBar() bool {
 	return false
 }
 
-func (m *model) updateOffset() {
-	height := m.listHeight()
-	// Scrolling down.
-	if m.r >= m.offset+height {
-		m.offset = m.r - height + 1
-	}
-	// Scrolling up.
-	if m.r < m.offset {
-		m.offset = m.r
-	}
-	// Don't scroll more than there are rows.
-	if m.offset > m.rows-height && m.rows > height {
-		m.offset = m.rows - height
-	}
-	if m.offset < 0 {
-		m.offset = 0
-	}
-}
-
 func (m *model) saveCursorPosition() {
 	m.positions[m.path] = position{
-		c:      m.c,
-		r:      m.r,
-		offset: m.offset,
+		cursorFileIndex:         m.currenFileIndex,
+		firstDisplayedFileIndex: m.firstFileIndex,
 	}
 }
 
-func (m *model) currentFile() (fs.DirEntry, bool) {
-	i := m.c*m.rows + m.r
+func (m *model) currentFile() (*fileEntry, bool) {
+	i := m.currenFileIndex
 	if i >= len(m.files) || i < 0 {
 		return nil, false
 	}
-	return m.files[i], true
+	return &m.files[i], true
 }
 
 func (m *model) currentFileName() (string, bool) {
@@ -790,15 +715,15 @@ func (m *model) currentFileName() (string, bool) {
 	if !ok {
 		return "", false
 	}
-	return f.Name(), true
+	return f.dirEntry.Name(), true
 }
 
 func (m *model) filePath() (string, bool) {
-	fileName, ok := m.currentFileName()
+	fileEntry, ok := m.currentFile()
 	if !ok {
-		return fileName, false
+		return "", false
 	}
-	return path.Join(m.path, fileName), true
+	return path.Join(fileEntry.dirPath, fileEntry.dirEntry.Name()), true
 }
 
 func (m *model) open() tea.Cmd {
@@ -921,7 +846,10 @@ func (m *model) preview() {
 			}
 		}
 	default:
-		m.previewContent = warning.Render("No preview available")
+		m.previewContent, ok = generateFilePreview(filePath)
+		if !ok {
+			m.previewContent = warning.Render("No preview available")
+		}
 	}
 }
 
@@ -944,13 +872,13 @@ func wrap(files []os.DirEntry, width int, height int, callback func(name string,
 	columns = max(columns, min(columnsEstimate, 4))
 
 	// For large lists, don't use more than 2 columns.
-	if len(files) > 100 {
-		columns = 2
+	if len(files) > longListLimit {
+		columns = longListColumns
 	}
 
 	// Fifteenth column is enough for everyone.
-	if columns > 15 {
-		columns = 15
+	if columns > maxColumns {
+		columns = maxColumns
 	}
 
 start:

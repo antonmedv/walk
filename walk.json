@@ -1,0 +1,80 @@
+{
+    "keys" : {
+        "forceQuit" : "esc",
+        "quit" : "ctrl+a",
+        "quitQ" : "ctrl+a",
+        "upDir" : "ctrl+left",
+        "openDir" : "ctrl+right",
+        "openTree" : "ctrl+down",
+        "closeTree" : "ctrl+up",
+        "back" : "backspace",
+        "select" : "insert"
+    },
+    
+    "colors" : {
+        "main" : { "fg" : "#3c3c3c" },
+        "cursor" : { "fg" : "#ffffff", "bg" : "#3c3c3c" },
+        "statusBar" : { "fg" : "#ffffff" },
+        "directory" : { "fg" : "#5C75B5" },
+        "symlink" : { "fg" : "#00ffff" },
+        "executable" : { "fg" : "#00ff00" },
+        "selectedFile" : { "fg" : "#f0f000" }
+    },
+    
+    "layout": {
+        "statusBar" : "[Mode(), Owner(), Size() | PadLeft(7), ModTime2(\"Jan 02 15:04\", \"2006  Jan 02\") | PadLeft(12), FileName()] | join(\" \")",
+        "fileInfo" : "[Mode(), Owner(), Size() | PadLeft(7), ModTime2(\"Jan 02 15:04\", \"2006  Jan 02\") | PadLeft(12)] | join(\" \")",
+        "#maxColumns" : 10,
+        "maxColumns" : 1,
+        "longListColumns" : 1,
+        "#longListColumns" : 4,
+        "longListLimit" : 200,
+        "columnSeparator": "|",
+        "selectionMark": "+"
+    },
+
+    "editor": "xdg-open",
+
+    "customCommands" : [
+        {
+            "description": "Edit",
+            "key": "ctrl+e",
+            "cmd": "my_walk_edit_cmd.sh",
+            "args": "currentFile"
+        },
+        {
+            "description": "Copy to clipboard",
+            "key": "ctrl+c",
+            "cmd": "qwclipfiles.sh c",
+            "args": "selectedOrCurrentFile",
+            "completedMessage": "Copied some files to the clipboard."
+        },
+        {
+            "description": "Cut to clipboard",
+            "key": "ctrl+x",
+            "cmd": "qwclipfiles.sh x",
+            "args": "selectedOrCurrentFile",
+            "completedMessage": "Cut some files to the clipboard."
+        },
+        {
+            "description": "Paste from clipboard",
+            "key": "ctrl+v",
+            "cmd": "qwclipfiles.sh p",
+            "args": "currentDir",
+            "completedMessage": "Pasted some files."
+        },
+        {
+            "description": "Create directory",
+            "cmd": "my_walk_cmd.sh mkdir",
+            "args": "input",
+            "prompt": "Create directory: "
+        },
+        {
+            "description": "Create file",
+            "cmd": "my_walk_cmd.sh touch",
+            "args": "input",
+            "prompt": "Create file: "
+        }
+    ]
+}
+
