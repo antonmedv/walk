@@ -196,8 +196,6 @@ func initExtra(m *model) {
 		}
 	}
 
-	// Custom commands
-
 	// Style (colors)
 	if config.Colors != nil {
 		initStyleFromConfig(&cursor, config.Colors.Cursor)
@@ -302,6 +300,13 @@ func initCustomCommands(m *model, config *appConfig) {
 	m.extra.customCommandsMenu = cmdMenu
 }
 
+func ensureDirExists(dirPath string) error {
+	if _, err := os.Stat(dirPath); !os.IsNotExist(err) {
+		return nil
+	}
+	return os.MkdirAll(dirPath, os.ModePerm)
+}
+
 func readConfig() appConfig {
 	var config appConfig
 
@@ -312,6 +317,12 @@ func readConfig() appConfig {
 	}
 
 	jsonPath := path.Join(homeDir, ".config", "walk.json")
+
+	if err := ensureDirExists(path.Dir(jsonPath)); err != nil {
+		log.Println("Cannot create directory for ", jsonPath)
+		return config
+	}
+
 	jsonFile, err := os.Open(jsonPath)
 	if err != nil {
 		log.Println("Cannot read config file: ", jsonPath)
@@ -330,7 +341,20 @@ func readConfig() appConfig {
 }
 
 func initLogToFile() {
-	logFile, err := os.OpenFile("/home/feher/.cache/walk.log", os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	homeDir, ok := os.LookupEnv("HOME")
+	if !ok {
+		log.Println("HOME env var is not defined.")
+		panic(ok)
+	}
+
+	logPath := path.Join(homeDir, ".cache", "walk.log")
+
+	if err := ensureDirExists(path.Dir(logPath)); err != nil {
+		log.Println("Cannot create directory for ", logPath)
+		panic(err)
+	}
+
+	logFile, err := os.OpenFile(logPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {
 		panic(err)
 	}
