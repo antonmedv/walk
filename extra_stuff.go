@@ -453,7 +453,6 @@ func executeCustomCommand(m *model, customCommand *customCommand) (tea.Cmd, bool
 			if !ok {
 				return nil, true
 			}
-			log.Println("EXE: DIR: ", fileEntry.dirPath)
 			return executeCommand(m, customCommand, fileEntry.dirPath), true
 		}
 	case argTypeCurrentFile:
@@ -634,8 +633,13 @@ func extraUpdate(m *model, msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		{
 			inputText := strings.TrimSpace(m.extra.textInput.Value())
 			if len(inputText) > 0 && m.extra.textInputCmd != nil {
-				return m, executeCommand(m, m.extra.textInputCmd, m.path, inputText), true
+				if currentFile, ok := m.currentFile(); ok {
+					log.Println("EXEC cmd: file ", currentFile.dirEntry.Name(), " dir ", currentFile.dirPath)
+					return m, executeCommand(m, m.extra.textInputCmd, currentFile.dirPath, inputText), true
+				}
 			}
+			return m, nil, true
+
 		}
 	case cmdMenuAcceptedMsg:
 		{
