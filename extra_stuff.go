@@ -776,7 +776,7 @@ func calculateColumnCount(maxNameSize int, files []fileEntry, width int, height 
 
 	// For large lists, limit the column count.
 	if fileCount > longListLimit {
-		columns = longListColumns
+		columns = min(columns, longListColumns)
 	}
 
 	// Obey the max column count limit.
