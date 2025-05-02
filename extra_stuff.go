@@ -449,11 +449,13 @@ func executeCustomCommand(m *model, customCommand *customCommand) (tea.Cmd, bool
 	switch customCommand.argType {
 	case argTypeCurrentDir:
 		{
-			fileEntry, ok := m.currentFile()
-			if !ok {
+			if fileEntry, ok := m.currentFile(); ok {
+				return executeCommand(m, customCommand, fileEntry.dirPath), true
+			} else if len(m.files) == 0 {
+				return executeCommand(m, customCommand, m.path), true
+			} else {
 				return nil, true
 			}
-			return executeCommand(m, customCommand, fileEntry.dirPath), true
 		}
 	case argTypeCurrentFile:
 		{
@@ -635,6 +637,8 @@ func extraUpdate(m *model, msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 			if len(inputText) > 0 && m.extra.textInputCmd != nil {
 				if currentFile, ok := m.currentFile(); ok {
 					return m, executeCommand(m, m.extra.textInputCmd, currentFile.dirPath, inputText), true
+				} else if len(m.files) == 0 {
+					return m, executeCommand(m, m.extra.textInputCmd, m.path, inputText), true
 				}
 			}
 			return m, nil, true
