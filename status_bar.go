@@ -19,6 +19,7 @@ func compile(code string) *vm.Program {
 }
 
 type Env struct {
+	DirPath     string
 	Files       []fs.DirEntry `expr:"files"`
 	CurrentFile fs.DirEntry   `expr:"current_file"`
 }
