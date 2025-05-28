@@ -102,19 +102,21 @@ No additional setup is required.
 
 ## Usage
 
-| Key binding                          | Description        |
-|--------------------------------------|--------------------|
-| <kbd>arrows</kbd>, <kbd>hjkl</kbd>   | Move cursor        |
-| <kbd>shift</kbd> + <kbd>arrows</kbd> | Jump to start/end  |
-| <kbd>enter</kbd>                     | Enter directory    |
-| <kbd>backspace</kbd>                 | Exit directory     |
-| <kbd>space</kbd>                     | Toggle preview     |
-| <kbd>esc</kbd>, <kbd>q</kbd>         | Exit with cd       |
-| <kbd>ctrl</kbd> + <kbd>c</kbd>       | Exit without cd    |
-| <kbd>/</kbd>                         | Fuzzy search       |
-| <kbd>d</kbd>, <kbd>delete</kbd>      | Delete file or dir |
-| <kbd>y</kbd>                         | yank current dir   |
-| <kbd>.</kbd>                         | Hide hidden files  |
+| Key binding                          | Description                                      |
+|--------------------------------------|--------------------------------------------------|
+| <kbd>arrows</kbd>, <kbd>hjkl</kbd>   | Move cursor                                      |
+| <kbd>shift</kbd> + <kbd>arrows</kbd> | Jump to start/end                                |
+| <kbd>enter</kbd>                     | Enter directory                                  |
+| <kbd>backspace</kbd>                 | Exit directory                                   |
+| <kbd>space</kbd>                     | Toggle preview                                   |
+| <kbd>esc</kbd>, <kbd>q</kbd>         | Exit with cd                                     |
+| <kbd>ctrl</kbd> + <kbd>c</kbd>       | Exit without cd                                  |
+| <kbd>/</kbd>                         | Fuzzy search                                     |
+| <kbd>v</kbd>                         | Select current file                              |
+| <kbd>c</kbd>                         | Clear all selected files                         |
+| <kbd>d</kbd>, <kbd>delete</kbd>      | Delete current or selected files or directories  |
+| <kbd>y</kbd>                         | yank current dir                                 |
+| <kbd>.</kbd>                         | Hide hidden files                                |
 
 ## Configuration
 
