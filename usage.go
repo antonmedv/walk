@@ -23,6 +23,8 @@ func usage(out io.Writer, full bool) {
 	put("    /\tFuzzy search")
 	put("    d, delete\tDelete file or dir")
 	put("    y\tCopy to clipboard")
+	put("    tab\tSelect/deselect file")
+	put("    a\tSelect/deselect all")
 	put("    .\tHide hidden files")
 	put("    ?\tShow help")
 	if full {

@@ -65,6 +65,7 @@ func main() {
 		termWidth:  80,
 		termHeight: 60,
 		positions:  make(map[string]position),
+		selected:   make(map[string]bool),
 	}
 
 	if statusBar, ok := os.LookupEnv("WALK_STATUS_BAR"); ok {
@@ -164,10 +165,12 @@ type model struct {
 	deleteCurrentFile     bool                // Whether to delete current file.
 	toBeDeleted           []toDelete          // Map of files to be deleted.
 	yankedFilePath        string              // Show yank info
+	yankedFiles           []string            // Show yanked files info (for multi-select)
 	hideHidden            bool                // Hide hidden files
 	showHelp              bool                // Show help
 	statusBar             *vm.Program         // Status bar program.
 	quitting              bool                // Whether we are quitting the program.
+	selected              map[string]bool     // Set of selected file paths.
 }
 
 type position struct {
@@ -372,14 +375,18 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case key.Matches(msg, keyDelete, keyFnDelete):
-			filePathToDelete, ok := m.filePath()
-			if ok {
+			// If files are selected, delete all selected files.
+			// Otherwise, delete the current file.
+			if len(m.selected) > 0 {
 				if m.deleteCurrentFile {
 					m.deleteCurrentFile = false
-					m.toBeDeleted = append(m.toBeDeleted, toDelete{
-						path: filePathToDelete,
-						at:   time.Now().Add(6 * time.Second),
-					})
+					for filePath := range m.selected {
+						m.toBeDeleted = append(m.toBeDeleted, toDelete{
+							path: filePath,
+							at:   time.Now().Add(6 * time.Second),
+						})
+					}
+					m.selected = make(map[string]bool)
 					m.list()
 					m.previewContent = ""
 					return m, tea.Tick(time.Second, func(time.Time) tea.Msg {
@@ -388,20 +395,85 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				} else {
 					m.deleteCurrentFile = true
 				}
+			} else {
+				filePathToDelete, ok := m.filePath()
+				if ok {
+					if m.deleteCurrentFile {
+						m.deleteCurrentFile = false
+						m.toBeDeleted = append(m.toBeDeleted, toDelete{
+							path: filePathToDelete,
+							at:   time.Now().Add(6 * time.Second),
+						})
+						m.list()
+						m.previewContent = ""
+						return m, tea.Tick(time.Second, func(time.Time) tea.Msg {
+							return toBeDeletedMsg(0)
+						})
+					} else {
+						m.deleteCurrentFile = true
+					}
+				}
 			}
 			return m, nil
 
 		case key.Matches(msg, keyYank):
-			filePath, ok := m.filePath()
-			if ok {
-				clipboard.WriteAll(filePath)
-				m.yankedFilePath = filePath
+			// If files are selected, yank all selected files.
+			// Otherwise, yank the current file.
+			if len(m.selected) > 0 {
+				var paths []string
+				for filePath := range m.selected {
+					paths = append(paths, filePath)
+				}
+				clipboard.WriteAll(Join(paths, "\n"))
+				m.yankedFiles = paths
+				m.yankedFilePath = ""
 				m.updateOffset()
+			} else {
+				filePath, ok := m.filePath()
+				if ok {
+					clipboard.WriteAll(filePath)
+					m.yankedFilePath = filePath
+					m.yankedFiles = nil
+					m.updateOffset()
+				}
 			}
 			return m, nil
 
 		case key.Matches(msg, keyHelp):
 			m.showHelp = !m.showHelp
+			return m, nil
+
+		case key.Matches(msg, keySelect):
+			filePath, ok := m.filePath()
+			if ok {
+				if m.selected[filePath] {
+					delete(m.selected, filePath)
+				} else {
+					m.selected[filePath] = true
+				}
+				m.moveDown()
+			}
+			return m, nil
+
+		case key.Matches(msg, keySelectAll):
+			// If any file in current directory is not selected, select all.
+			// Otherwise, deselect all.
+			allSelected := true
+			for _, file := range m.files {
+				filePath := path.Join(m.path, file.Name())
+				if !m.selected[filePath] {
+					allSelected = false
+					break
+				}
+			}
+			for _, file := range m.files {
+				filePath := path.Join(m.path, file.Name())
+				if allSelected {
+					delete(m.selected, filePath)
+				} else {
+					m.selected[filePath] = true
+				}
+			}
 			return m, nil
 
 		case key.Matches(msg, keyHidden):
@@ -413,6 +485,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.deleteCurrentFile = false
 		m.showHelp = false
 		m.yankedFilePath = ""
+		m.yankedFiles = nil
 		m.updateOffset()
 		m.saveCursorPosition()
 
@@ -513,12 +586,20 @@ func (m *model) View() string {
 	for j := 0; j < m.rows; j++ {
 		row := make([]string, m.columns)
 		for i := 0; i < m.columns; i++ {
+			fileIndex := i*m.rows + j
+			isSelected := false
+			if fileIndex < len(m.files) {
+				filePath := path.Join(m.path, m.files[fileIndex].Name())
+				isSelected = m.selected[filePath]
+			}
 			if i == m.c && j == m.r {
 				if m.deleteCurrentFile {
 					row[i] = danger.Render(names[i][j])
 				} else {
 					row[i] = cursor.Render(names[i][j])
 				}
+			} else if isSelected {
+				row[i] = selected.Render(names[i][j])
 			} else {
 				row[i] = names[i][j]
 			}
@@ -574,11 +655,22 @@ func (m *model) View() string {
 		if len(m.toBeDeleted) > 0 {
 			toDelete := m.toBeDeleted[len(m.toBeDeleted)-1]
 			timeLeft := int(toDelete.at.Sub(time.Now()).Seconds())
-			deleteBar := fmt.Sprintf("%v deleted. (u)ndo %v", path.Base(toDelete.path), timeLeft)
+			var deleteBar string
+			if len(m.toBeDeleted) > 1 {
+				deleteBar = fmt.Sprintf("%d files deleted. (u)ndo %v", len(m.toBeDeleted), timeLeft)
+			} else {
+				deleteBar = fmt.Sprintf("%v deleted. (u)ndo %v", path.Base(toDelete.path), timeLeft)
+			}
 			main += "\n" + danger.Render(deleteBar)
 		} else if m.yankedFilePath != "" {
 			yankBar := fmt.Sprintf("copied: %v", m.yankedFilePath)
 			main += "\n" + bar.Render(yankBar)
+		} else if len(m.yankedFiles) > 0 {
+			yankBar := fmt.Sprintf("copied: %d files", len(m.yankedFiles))
+			main += "\n" + bar.Render(yankBar)
+		} else if len(m.selected) > 0 {
+			selectBar := fmt.Sprintf("%d selected", len(m.selected))
+			main += "\n" + selected.Render(selectBar)
 		} else if m.statusBar != nil {
 			f, ok := m.currentFile()
 			if ok {
@@ -742,6 +834,12 @@ func (m *model) showStatusBar() bool {
 		return true
 	}
 	if m.yankedFilePath != "" {
+		return true
+	}
+	if len(m.yankedFiles) > 0 {
+		return true
+	}
+	if len(m.selected) > 0 {
 		return true
 	}
 	if m.statusBar != nil {

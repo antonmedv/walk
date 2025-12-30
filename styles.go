@@ -5,17 +5,19 @@ import (
 )
 
 var (
-	mainColor    = lipgloss.Color("#825DF2")
-	barColor     = lipgloss.Color("#5C5C5C")
-	searchColor  = lipgloss.Color("#499F1C")
-	bold         lipgloss.Style
-	warning      lipgloss.Style
-	cursor       lipgloss.Style
-	bar          lipgloss.Style
-	search       lipgloss.Style
-	danger       lipgloss.Style
-	previewPlain lipgloss.Style
-	previewSplit lipgloss.Style
+	mainColor     = lipgloss.Color("#825DF2")
+	barColor      = lipgloss.Color("#5C5C5C")
+	searchColor   = lipgloss.Color("#499F1C")
+	selectedColor = lipgloss.Color("#499F1C")
+	bold          lipgloss.Style
+	warning       lipgloss.Style
+	cursor        lipgloss.Style
+	bar           lipgloss.Style
+	search        lipgloss.Style
+	danger        lipgloss.Style
+	selected      lipgloss.Style
+	previewPlain  lipgloss.Style
+	previewSplit  lipgloss.Style
 )
 
 func initStyles() {
@@ -25,6 +27,7 @@ func initStyles() {
 	bar = lipgloss.NewStyle().Background(barColor).Foreground(lipgloss.Color("#FFFFFF"))
 	search = lipgloss.NewStyle().Background(searchColor).Foreground(lipgloss.Color("#FFFFFF"))
 	danger = lipgloss.NewStyle().Background(lipgloss.Color("#FF0000")).Foreground(lipgloss.Color("#FFFFFF"))
+	selected = lipgloss.NewStyle().Background(selectedColor).Foreground(lipgloss.Color("#FFFFFF"))
 	previewPlain = lipgloss.NewStyle().PaddingLeft(2)
 	previewSplit = lipgloss.NewStyle().
 		MarginLeft(1).

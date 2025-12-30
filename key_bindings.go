@@ -36,4 +36,6 @@ var (
 	keyYank      = key.NewBinding(key.WithKeys("y"))
 	keyHidden    = key.NewBinding(key.WithKeys("."))
 	keyHelp      = key.NewBinding(key.WithKeys("?"))
+	keySelect    = key.NewBinding(key.WithKeys("tab"))
+	keySelectAll = key.NewBinding(key.WithKeys("a"))
 )
