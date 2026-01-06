@@ -34,6 +34,7 @@ var (
 	keyDelete    = key.NewBinding(key.WithKeys("d"))
 	keyUndo      = key.NewBinding(key.WithKeys("u"))
 	keyYank      = key.NewBinding(key.WithKeys("y"))
+	keyPaste     = key.NewBinding(key.WithKeys("p"))
 	keyHidden    = key.NewBinding(key.WithKeys("."))
 	keyHelp      = key.NewBinding(key.WithKeys("?"))
 )

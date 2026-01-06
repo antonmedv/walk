@@ -163,7 +163,10 @@ type model struct {
 	previewContent        string              // Content of preview.
 	deleteCurrentFile     bool                // Whether to delete current file.
 	toBeDeleted           []toDelete          // Map of files to be deleted.
-	yankedFilePath        string              // Show yank info
+	yankedFilePath        string              // Path of yanked file for pasting
+	yankedFileDisplay     string              // Show yank confirmation message
+	pastedFilePath        string              // Show paste success message
+	pasteError            string              // Show paste error message
 	hideHidden            bool                // Hide hidden files
 	showHelp              bool                // Show help
 	statusBar             *vm.Program         // Status bar program.
@@ -396,6 +399,29 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if ok {
 				clipboard.WriteAll(filePath)
 				m.yankedFilePath = filePath
+				m.yankedFileDisplay = filePath
+				m.updateOffset()
+			}
+			return m, nil
+
+		case key.Matches(msg, keyPaste):
+			if m.yankedFilePath != "" {
+				destDir := m.path
+				baseName := filepath.Base(m.yankedFilePath)
+				destPath := filepath.Join(destDir, baseName)
+				
+				// Don't paste if file already exists
+				if _, err := os.Stat(destPath); err == nil {
+					m.pasteError = "file already exists"
+				} else {
+					err := m.pasteFile(m.yankedFilePath, destPath)
+					if err != nil {
+						m.pasteError = err.Error()
+					} else {
+						m.pastedFilePath = baseName
+						m.list() // Refresh file list
+					}
+				}
 				m.updateOffset()
 			}
 			return m, nil
@@ -412,7 +438,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m.deleteCurrentFile = false
 		m.showHelp = false
-		m.yankedFilePath = ""
+		m.yankedFileDisplay = ""
+		m.pastedFilePath = ""
+		m.pasteError = ""
 		m.updateOffset()
 		m.saveCursorPosition()
 
@@ -576,8 +604,14 @@ func (m *model) View() string {
 			timeLeft := int(toDelete.at.Sub(time.Now()).Seconds())
 			deleteBar := fmt.Sprintf("%v deleted. (u)ndo %v", path.Base(toDelete.path), timeLeft)
 			main += "\n" + danger.Render(deleteBar)
-		} else if m.yankedFilePath != "" {
-			yankBar := fmt.Sprintf("copied: %v", m.yankedFilePath)
+		} else if m.pasteError != "" {
+			pasteBar := fmt.Sprintf("paste error: %v", m.pasteError)
+			main += "\n" + warning.Render(pasteBar)
+		} else if m.pastedFilePath != "" {
+			pasteBar := fmt.Sprintf("pasted: %v", m.pastedFilePath)
+			main += "\n" + bar.Render(pasteBar)
+		} else if m.yankedFileDisplay != "" {
+			yankBar := fmt.Sprintf("copied: %v", m.yankedFileDisplay)
 			main += "\n" + bar.Render(yankBar)
 		} else if m.statusBar != nil {
 			f, ok := m.currentFile()
@@ -741,7 +775,13 @@ func (m *model) showStatusBar() bool {
 	if len(m.toBeDeleted) > 0 {
 		return true
 	}
-	if m.yankedFilePath != "" {
+	if m.yankedFileDisplay != "" {
+		return true
+	}
+	if m.pastedFilePath != "" {
+		return true
+	}
+	if m.pasteError != "" {
 		return true
 	}
 	if m.statusBar != nil {
@@ -799,6 +839,18 @@ func (m *model) filePath() (string, bool) {
 		return fileName, false
 	}
 	return path.Join(m.path, fileName), true
+}
+
+func (m *model) pasteFile(srcPath, destPath string) error {
+	srcInfo, err := os.Stat(srcPath)
+	if err != nil {
+		return err
+	}
+	
+	if srcInfo.IsDir() {
+		return copyDir(srcPath, destPath)
+	}
+	return copyFile(srcPath, destPath)
 }
 
 func (m *model) open() tea.Cmd {
