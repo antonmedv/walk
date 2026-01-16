@@ -509,6 +509,12 @@ func (m *model) View() string {
 		}
 	})
 
+	// when selector position be out of range, reset them
+	if m.r >= m.rows || m.c >= m.columns {
+		m.r = 0
+		m.c = 0
+	}
+
 	// If we need to select previous directory on "up".
 	if m.findPrevName {
 		m.findPrevName = false
