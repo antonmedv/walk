@@ -2,7 +2,7 @@
 
 owner='antonmedv'
 name='walk'
-version='v1.13.0'
+version='v1.14.0'
 
 os=$(uname -s | tr '[:upper:]' '[:lower:]')
 machine=$(uname -m)
