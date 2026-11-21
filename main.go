@@ -67,6 +67,12 @@ func main() {
 		positions:  make(map[string]position),
 	}
 
+	for _, pattern := range Split(os.Getenv("WALK_IGNORE"), ";") {
+		if pattern = TrimSpace(pattern); pattern != "" {
+			m.ignorePatterns = append(m.ignorePatterns, pattern)
+		}
+	}
+
 	if statusBar, ok := os.LookupEnv("WALK_STATUS_BAR"); ok {
 		m.statusBar = compile(statusBar)
 	}
@@ -168,6 +174,7 @@ type model struct {
 	pastedFilePath        string              // Show paste success message
 	pasteError            string              // Show paste error message
 	hideHidden            bool                // Hide hidden files
+	ignorePatterns        []string            // Globs for names to hide from the directory list.
 	showHelp              bool                // Show help
 	statusBar             *vm.Program         // Status bar program.
 	quitting              bool                // Whether we are quitting the program.
@@ -760,6 +767,11 @@ files:
 	for _, file := range files {
 		if m.hideHidden && HasPrefix(file.Name(), ".") {
 			continue files
+		}
+		for _, pattern := range m.ignorePatterns {
+			if matched, _ := filepath.Match(pattern, file.Name()); matched {
+				continue files
+			}
 		}
 		if dirOnly && !file.IsDir() {
 			continue files
