@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"unicode"
 )
 
 func extension(path string) string {
@@ -42,20 +43,26 @@ func remove(path string) {
 	}()
 }
 
-func leaveOnlyAscii(content []byte) string {
-	var result []byte
+// leaveOnlyPrintable keeps only characters that are safe to display in the
+// terminal: printable Unicode characters and newlines. Tabs are expanded to
+// four spaces; control characters (including ANSI escapes) are dropped.
+// The content must be valid UTF-8.
+func leaveOnlyPrintable(content []byte) string {
+	var result strings.Builder
+	result.Grow(len(content))
 
-	for _, b := range content {
-		if b == '\t' {
-			result = append(result, ' ', ' ', ' ', ' ')
-		} else if b == '\r' {
-			continue
-		} else if (b >= 32 && b <= 127) || b == '\n' { // '\n' is kept if newline needs to be retained
-			result = append(result, b)
+	for _, r := range string(content) {
+		switch {
+		case r == '\t':
+			result.WriteString("    ")
+		case r == '\n':
+			result.WriteRune(r)
+		case unicode.IsGraphic(r):
+			result.WriteRune(r)
 		}
 	}
 
-	return string(result)
+	return result.String()
 }
 
 func permBit(bit fs.FileMode, c byte) byte {

@@ -28,3 +28,23 @@ func TestIsSubPath(t *testing.T) {
 		}
 	}
 }
+
+func TestLeaveOnlyPrintable(t *testing.T) {
+	tests := []struct {
+		in, want string
+	}{
+		{"hello\nworld", "hello\nworld"},
+		{"a\tb", "a    b"},
+		{"line\r\n", "line\n"},
+		{"Привет, 世界 🙂", "Привет, 世界 🙂"},
+		{"é", "é"}, // combining mark
+		{"\x1b[31mred\x1b[0m", "[31mred[0m"},
+		{"bell\x07 del\x7f nul\x00", "bell del nul"},
+		{"c1\u009b", "c1"},
+	}
+	for _, tt := range tests {
+		if got := leaveOnlyPrintable([]byte(tt.in)); got != tt.want {
+			t.Errorf("leaveOnlyPrintable(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
