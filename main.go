@@ -509,10 +509,14 @@ func (m *model) View() string {
 		}
 	})
 
-	// when selector position be out of range, reset them
-	if m.r >= m.rows || m.c >= m.columns {
-		m.r = 0
-		m.c = 0
+	// If the cursor is out of range (e.g. after hiding files or deleting
+	// the last one), move it to the last file.
+	if n := len(m.files); n > 0 && m.rows > 0 {
+		if m.r >= m.rows || m.c >= m.columns || m.c*m.rows+m.r >= n {
+			m.c = (n - 1) / m.rows
+			m.r = (n - 1) % m.rows
+			m.updateOffset()
+		}
 	}
 
 	// If we need to select previous directory on "up".
@@ -968,7 +972,7 @@ func (m *model) preview() {
 
 	switch {
 	case utf8.Valid(content):
-		previewContent := leaveOnlyAscii(content)
+		previewContent := leaveOnlyPrintable(content)
 		m.previewContent = previewContent
 
 		if withHighlight {
