@@ -409,7 +409,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				destDir := m.path
 				baseName := filepath.Base(m.yankedFilePath)
 				destPath := filepath.Join(destDir, baseName)
-				
+
 				// Don't paste if file already exists
 				if _, err := os.Stat(destPath); err == nil {
 					m.pasteError = "file already exists"
@@ -846,8 +846,11 @@ func (m *model) pasteFile(srcPath, destPath string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	if srcInfo.IsDir() {
+		if isSubPath(srcPath, destPath) {
+			return fmt.Errorf("cannot paste a directory into itself")
+		}
 		return copyDir(srcPath, destPath)
 	}
 	return copyFile(srcPath, destPath)

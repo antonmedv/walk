@@ -72,17 +72,17 @@ func copyFile(src, dst string) error {
 		return err
 	}
 	defer sourceFile.Close()
-	
+
 	destFile, err := os.Create(dst)
 	if err != nil {
 		return err
 	}
 	defer destFile.Close()
-	
+
 	if _, err = io.Copy(destFile, sourceFile); err != nil {
 		return err
 	}
-	
+
 	// Preserve permissions
 	srcInfo, err := os.Stat(src)
 	if err != nil {
@@ -97,30 +97,59 @@ func copyDir(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	if err = os.MkdirAll(dst, srcInfo.Mode()); err != nil {
 		return err
 	}
-	
+
 	entries, err := os.ReadDir(src)
 	if err != nil {
 		return err
 	}
-	
+
 	for _, entry := range entries {
 		srcPath := filepath.Join(src, entry.Name())
 		dstPath := filepath.Join(dst, entry.Name())
-		
+
 		if entry.IsDir() {
 			err = copyDir(srcPath, dstPath)
 		} else {
 			err = copyFile(srcPath, dstPath)
 		}
-		
+
 		if err != nil {
 			return err
 		}
 	}
-	
+
 	return nil
+}
+
+// isSubPath reports whether target is located inside (or equal to) dir.
+func isSubPath(dir, target string) bool {
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return false
+	}
+	absTarget, err := filepath.Abs(target)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(resolvePath(absDir), resolvePath(absTarget))
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
+}
+
+// resolvePath resolves symlinks in the longest existing prefix of an absolute path.
+func resolvePath(p string) string {
+	if r, err := filepath.EvalSymlinks(p); err == nil {
+		return r
+	}
+	parent := filepath.Dir(p)
+	if parent == p {
+		return p
+	}
+	return filepath.Join(resolvePath(parent), filepath.Base(p))
 }

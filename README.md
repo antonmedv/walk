@@ -113,7 +113,8 @@ No additional setup is required.
 | <kbd>ctrl</kbd> + <kbd>c</kbd>       | Exit without cd    |
 | <kbd>/</kbd>                         | Fuzzy search       |
 | <kbd>d</kbd>, <kbd>delete</kbd>      | Delete file or dir |
-| <kbd>y</kbd>                         | yank current dir   |
+| <kbd>y</kbd>                         | Yank current path  |
+| <kbd>p</kbd>                         | Paste yanked file  |
 | <kbd>.</kbd>                         | Hide hidden files  |
 
 ## Configuration
