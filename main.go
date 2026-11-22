@@ -764,6 +764,12 @@ files:
 		if dirOnly && !file.IsDir() {
 			continue files
 		}
+		// Patterns that fail to parse (ErrBadPattern) never match.
+		for _, pattern := range Split(os.Getenv("WALK_IGNORE"), ";") {
+			if ok, _ := filepath.Match(pattern, file.Name()); ok {
+				continue files
+			}
+		}
 		for _, toDelete := range m.toBeDeleted {
 			if path.Join(m.path, file.Name()) == toDelete.path {
 				continue files

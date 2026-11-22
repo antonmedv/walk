@@ -140,6 +140,12 @@ command to remove files than the default `rm`.
 export WALK_REMOVE_CMD=trash
 ```
 
+Use `WALK_IGNORE` to hide entries whose names match [glob](https://pkg.go.dev/path/filepath#Match) patterns (separated by `;`).
+
+```bash
+export WALK_IGNORE="NTUSER*;*.tmp"
+```
+
 Change main color with `WALK_MAIN_COLOR` environment variable. Available colors
 are [here](https://github.com/charmbracelet/lipgloss#colors).
 
