@@ -3,8 +3,28 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestListIgnore(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{"NTUSER.DAT", "a.txt", "b.log"} {
+		if err := os.WriteFile(filepath.Join(dir, name), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("WALK_IGNORE", "NTUSER*;[") // an invalid pattern is skipped
+	m := &model{path: dir}
+	m.list()
+	var got []string
+	for _, f := range m.files {
+		got = append(got, f.Name())
+	}
+	if want := "a.txt,b.log"; strings.Join(got, ",") != want {
+		t.Errorf("list() = %v, want %v", got, want)
+	}
+}
 
 func TestIsSubPath(t *testing.T) {
 	dir := t.TempDir()
