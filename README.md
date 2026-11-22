@@ -119,6 +119,15 @@ No additional setup is required.
 
 ## Configuration
 
+Set `WALK_IGNORE` to a semicolon-separated list of glob patterns to hide
+matching file and directory names from the directory list. Patterns match
+names in every directory you browse. Invalid patterns are skipped. The
+hidden-file toggle works independently of this setting.
+
+```bash
+export WALK_IGNORE="ntuser*;NTUSER.DAT*;node_modules"
+```
+
 The `EDITOR` or `WALK_EDITOR` environment variable used for opening files from
 the walk.
 
